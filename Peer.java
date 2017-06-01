@@ -14,6 +14,10 @@ public class Peer {
       hostAddr = getNextNonLoopbackAddr();
     }
 
+    /**
+     * Credit: This code snippet was taken from :
+     * http://www.java2s.com/Code/Java/Network-Protocol/FindsalocalnonloopbackIPv4address.htm
+     */
     private InetAddress getNextNonLoopbackAddr() throws SocketException {
       Enumeration<NetworkInterface> ifaceList = NetworkInterface.getNetworkInterfaces();
       while ( ifaceList.hasMoreElements() ) {
