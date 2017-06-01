@@ -26,7 +26,7 @@ public class Peer {
 
         while ( addresses.hasMoreElements() ) {
           InetAddress addr = addresses.nextElement();
-          if ( addr instanceof Inet6Address && !addr.isLoopbackAddress() ) {
+          if ( addr instanceof Inet4Address && !addr.isLoopbackAddress() ) {
             return addr;
           }
         }
@@ -40,14 +40,13 @@ public class Peer {
       ServerSocket conn = new ServerSocket();
       while ( port <= MAX_PORT ) {
         try {
-          System.out.println("Try connect: " + hostAddr.getHostName() + " " + port);
           conn.bind(new InetSocketAddress(hostAddr, port));;
           break;
         } catch (IOException e) {
           port++;
         }
       }
-      System.out.println("Created socket for : " + hostAddr.getHostAddress() + " " + port);
+      System.out.println("Connected at : " + hostAddr.getHostAddress() + " " + port);
       connectionPort = port;
       conn.setReuseAddress(false);
       return conn;
@@ -80,9 +79,8 @@ public class Peer {
       //else
       //  clientSocket = new Socket(connectionHost, connectionPort);
       
-      System.out.println(connMan.getHostName() + " " + connMan.getConnectionPort());
-      while ( true )
-        listener = connMan.getAvailableConnection(); 
+      listener = connMan.getAvailableConnection(); 
+      while (true) {}
     } catch (IOException e) {
       e.printStackTrace();
     }
