@@ -70,17 +70,14 @@ public class Peer {
       connectionPort = Integer.parseInt(args[1]);
     }
     ConnectionManager connMan;
-    //Socket clientSocket = null;
+    Socket clientSocket = null;
     ServerSocket listener = null;
     try {
       connMan = new ConnectionManager();
-      //if (args.length == 0)
-      //  clientSocket = connMan.getAvailableConnection();
-      //else
-      //  clientSocket = new Socket(connectionHost, connectionPort);
-      
       listener = connMan.getAvailableConnection(); 
-      while (true) {}
+      if ( connectionHost != null )
+        clientSocket = new Socket(connectionHost, connectionPort);
+      while ( true ) {}
     } catch (IOException e) {
       e.printStackTrace();
     }
