@@ -77,7 +77,10 @@ public class Peer {
       listener = connMan.getAvailableConnection(); 
       if ( connectionHost != null )
         clientSocket = new Socket(connectionHost, connectionPort);
-      while ( true ) {}
+      while ( true ) {
+        Socket server = listener.accept();
+      }
+
     } catch (IOException e) {
       e.printStackTrace();
     }
