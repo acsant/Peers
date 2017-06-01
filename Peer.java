@@ -2,7 +2,7 @@ import java.util.*;
 import java.net.*;
 import java.io.*;
 
-public class AddPeer {
+public class Peer {
 
   private static class ConnectionManager {
     private InetAddress hostAddr;
@@ -77,7 +77,8 @@ public class AddPeer {
       //  clientSocket = new Socket(connectionHost, connectionPort);
       
       System.out.println(connMan.getHostName() + " " + connMan.getConnectionPort());
-      listener = connMan.getAvailableConnection(); 
+      while ( true )
+        listener = connMan.getAvailableConnection(); 
     } catch (IOException e) {
       e.printStackTrace();
     }
