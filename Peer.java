@@ -7,6 +7,10 @@ public class Peer {
   // Enable Logging
   static PSLogger log;
 
+  public enum CMD {
+    EXIT,
+  }
+
   // Marshalling
   private static class Message {
     String cmd;
