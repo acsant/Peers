@@ -4,6 +4,20 @@ import java.io.*;
 
 public class Peer {
 
+  // Enable Logging
+  static PSLogger log;
+
+  // Marshalling
+  private static class Message {
+    String cmd;
+    String[] params;
+
+    Message (String cmd, String[] params) {
+      this.cmd = cmd;
+      this.params = params;
+    }
+  }
+
   private static class ConnectionManager {
     private InetAddress hostAddr;
     private static final int MIN_PORT = 10000;
@@ -46,7 +60,7 @@ public class Peer {
           port++;
         }
       }
-      System.out.println("Connected at : " + hostAddr.getHostAddress() + " " + port);
+      
       connectionPort = port;
       conn.setReuseAddress(false);
       return conn;
@@ -69,16 +83,30 @@ public class Peer {
       connectionHost = args[0];
       connectionPort = Integer.parseInt(args[1]);
     }
+
     ConnectionManager connMan;
     Socket clientSocket = null;
     ServerSocket listener = null;
     try {
-      connMan = new ConnectionManager();
-      listener = connMan.getAvailableConnection(); 
-      if ( connectionHost != null )
-        clientSocket = new Socket(connectionHost, connectionPort);
-      while ( true ) {
-        Socket server = listener.accept();
+      try {
+        connMan = new ConnectionManager();
+        listener = connMan.getAvailableConnection(); 
+        log = new PSLogger(Peer.class.getName(),
+            "Peer@" + connMan.getHostName() + ":" + connMan.getConnectionPort());
+        log.log("Connected at : " + connMan.getHostName() + " " + connMan.getConnectionPort());
+        if ( connectionHost != null )
+          clientSocket = new Socket(connectionHost, connectionPort);
+        while ( true ) {
+          Socket server = listener.accept();
+          InetAddress connectedHost = server.getInetAddress();
+          int connectedPort = server.getPort();
+          Socket prevConnection = new Socket(connectedHost, connectedPort);
+          server.close();
+          prevConnection.close();
+        }
+      } finally {
+        listener.close();
+        clientSocket.close();
       }
 
     } catch (IOException e) {

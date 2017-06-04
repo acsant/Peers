@@ -1,1 +1,1 @@
-java AddPeer $1 $2
+java -cp .:"lib/*" AddPeer $1 $2
