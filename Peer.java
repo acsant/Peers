@@ -13,10 +13,10 @@ public class Peer {
 
   // Marshalling
   private static class Message {
-    String cmd;
+    CMD cmd;
     String[] params;
 
-    Message (String cmd, String[] params) {
+    Message (CMD cmd, String[] params) {
       this.cmd = cmd;
       this.params = params;
     }
