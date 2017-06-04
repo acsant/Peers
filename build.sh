@@ -1,5 +1,8 @@
 JAVA_CC=/usr/bin/javac
 
+echo --Killing all peers
+killall -9 java
+
 echo --Cleaning
 rm -f *.jar
 rm -f *.class
