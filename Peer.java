@@ -16,7 +16,7 @@ public class Peer {
   }
 
   // Marshalling
-  private static class Message {
+  private static class Message implements Serializable {
     CMD cmd;
     String[] params;
 
@@ -68,7 +68,7 @@ public class Peer {
           port++;
         }
       }
-      
+
       connectionPort = port;
       conn.setReuseAddress(false);
       return conn;
@@ -83,10 +83,22 @@ public class Peer {
     }
   }
 
+  private static void addPeer(String host, int port, ConnectionManager connMan) {
+    if (host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()) {
+      return;
+    }
+    try {
+      Socket next = new Socket(host, port);
+      Message msg = new Message(CMD.ADDPEER, new String[] {connMan.getHostName(), String.valueOf(connMan.getConnectionPort())});
+      ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
+      outStream.writeObject(msg);
+    } catch (Exception e) {
+      log.log(e.getMessage());
+    }
+  }
+
   public static void main(String[] args) {
     // for serializing/deserializing message into/from streams
-    ObjectOutputStream outputStream = null;
-    ObjectInputStream inputStream = null;
     Message msg;
 
     // list of all active peers in the network
@@ -104,33 +116,50 @@ public class Peer {
     Socket clientSocket = null;
     ServerSocket listener = null;
     try {
+      Socket server = null;
       try {
         connMan = new ConnectionManager();
         listener = connMan.getAvailableConnection(); 
         log = new PSLogger(Peer.class.getName(),
             "Peer@" + connMan.getHostName() + ":" + connMan.getConnectionPort());
         log.log("Connected at : " + connMan.getHostName() + " " + connMan.getConnectionPort());
-        if ( connectionHost != null )
+        if ( connectionHost != null ) {
+          log.log("Connection to server of : " + connectionHost + " : " + connectionPort);
           clientSocket = new Socket(connectionHost, connectionPort);
-          outputStream = new ObjectOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
+          ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
           //TBD
           String [] msgArgs = null;
           msg = new Message(CMD.ADDPEER, args);
           // serialize message and send to server
           outputStream.writeObject(msg);
-
+        }
 
         while ( true ) {
-          Socket server = listener.accept();
-          InetAddress connectedHost = server.getInetAddress();
-          int connectedPort = server.getPort();
-          Socket prevConnection = new Socket(connectedHost, connectedPort);
-          server.close();
-          prevConnection.close();
+          server = listener.accept();
+          log.log("Server listening...");
+
+          ObjectInputStream inStream = new ObjectInputStream(server.getInputStream());
+          Message incoming = (Message) inStream.readObject();
+
+          log.log("Message Recieved: " + incoming.cmd);
+          switch (incoming.cmd) {
+            case ADDPEER:
+              addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+              break;
+            case EXIT:
+              break;
+            default:
+              break;
+          }
         }
+
+      } catch (Exception e) {
+        log.log(e.getMessage());
       } finally {
         listener.close();
-        clientSocket.close();
+        server.close();
+        if ( clientSocket != null )
+          clientSocket.close();
       }
 
     } catch (IOException e) {

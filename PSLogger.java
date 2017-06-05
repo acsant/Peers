@@ -7,7 +7,7 @@ public class PSLogger {
   static Logger log;
   
   PSLogger(String name, String prefix) {
-    PropertyConfigurator.configure("~/Development/PeerSystem/log4j.properties");
+    PropertyConfigurator.configure("log4j.properties");
     log = Logger.getLogger(name);
 
     this.prefix = prefix;
