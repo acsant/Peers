@@ -83,6 +83,14 @@ public class Peer {
     }
   }
 
+  private static void addPeer(String host, int port) {
+
+  }
+
+  private static void removePeer() {
+    System.exit(0);
+  }
+
   public static void main(String[] args) {
     // for serializing/deserializing message into/from streams
     ObjectOutputStream outputStream = null;
@@ -110,27 +118,49 @@ public class Peer {
         log = new PSLogger(Peer.class.getName(),
             "Peer@" + connMan.getHostName() + ":" + connMan.getConnectionPort());
         log.log("Connected at : " + connMan.getHostName() + " " + connMan.getConnectionPort());
-        if ( connectionHost != null )
+        if ( connectionHost != null ) {
           clientSocket = new Socket(connectionHost, connectionPort);
           outputStream = new ObjectOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
           //TBD
-          String [] msgArgs = null;
+          String[] msgArgs = null;
           msg = new Message(CMD.ADDPEER, args);
           // serialize message and send to server
           outputStream.writeObject(msg);
-
+        }
 
         while ( true ) {
           Socket server = listener.accept();
           InetAddress connectedHost = server.getInetAddress();
           int connectedPort = server.getPort();
           Socket prevConnection = new Socket(connectedHost, connectedPort);
+          inputStream = new ObjectInputStream(new BufferedInputStream(server.getInputStream()));
+
+          try {
+            msg = (Message) inputStream.readObject();
+            String msgHostAddress = msg.params[0];
+            int msgPortNumber = Integer.parseInt(msg.params[1]);
+
+            switch (msg.cmd) {
+              case EXIT:
+                removePeer();
+                break;
+              case ADDPEER:
+                addPeer(msgHostAddress, msgPortNumber);
+                break;
+              default:
+                break;
+            }
+          } catch (ClassNotFoundException cnfe){
+            log.log("Invalid message sent.");
+          }
+
           server.close();
           prevConnection.close();
         }
       } finally {
         listener.close();
-        clientSocket.close();
+        if (clientSocket != null)
+          clientSocket.close();
       }
 
     } catch (IOException e) {
