@@ -10,22 +10,6 @@ public class Peer {
   // Enable Logging
   static PSLogger log;
 
-  public enum CMD {
-    EXIT,
-    ADDPEER
-  }
-
-  // Marshalling
-  private static class Message implements Serializable {
-    CMD cmd;
-    String[] params;
-
-    Message (CMD cmd, String[] params) {
-      this.cmd = cmd;
-      this.params = params;
-    }
-  }
-
   private static class ConnectionManager {
     private InetAddress hostAddr;
     private static final int MIN_PORT = 10000;
