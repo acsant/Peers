@@ -8,8 +8,8 @@ import java.io.*;
 public class Peer {
 
   // References to next and prev
-  Address prev = null;
-  Address next = null;
+  static Address prev = null;
+  static Address next = null;
 
   public static class Address {
     String host;
@@ -26,7 +26,9 @@ public class Peer {
 
   public enum CMD {
     EXIT,
-    SETNEXT
+    SETNEXT,
+    SETPREV
+
   }
 
   // Marshalling
@@ -97,17 +99,27 @@ public class Peer {
     }
   }
 
-  private static void setNext(String host, int port, ConnectionManager connMan) {
-    if ( prev == null && next == null ) {
-      next = new Address(host, port);
-    }
-  
-    Socket clientSocket = new Socket(host, port);
-    ObjectInputStream inStream = new ObjectInputStream(clientSocket.getInputStream());
-    Message setPrevMsg = new Message(CMD.SETPREV, new String[] {
-      connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
-    });
+  private static void setLink(CMD linkDir, String host, int port, ConnectionManager connMan) {
+    if (linkDir == CMD.SETPREV) {
+      prev = new Address(host, port);
+    } else if (linkDir == CMD.SETNEXT) {
+      if (prev == null && next == null) {
+        next = new Address(host, port);
+      }
+      try {
+        Socket clientSocket = new Socket(host, port);
 
+        ObjectOutputStream inStream = new ObjectOutputStream(clientSocket.getOutputStream());
+        Message setPrevMsg = new Message(CMD.SETPREV, new String[]{
+                connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+        });
+
+        inStream.writeObject(setPrevMsg);
+
+      } catch (Exception e) {
+        log.log(e.getMessage());
+      }
+    }
   }
 
   public static void main(String[] args) {
@@ -157,7 +169,10 @@ public class Peer {
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
             case SETNEXT:
-              setNext(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+              setLink(CMD.SETNEXT,incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+              break;
+            case SETPREV:
+              setLink(CMD.SETPREV,incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case EXIT:
               break;
