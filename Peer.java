@@ -1,3 +1,6 @@
+import javafx.util.Pair;
+
+import java.lang.reflect.Array;
 import java.util.*;
 import java.net.*;
 import java.io.*;
@@ -9,6 +12,7 @@ public class Peer {
 
   public enum CMD {
     EXIT,
+    ADDPEER
   }
 
   // Marshalling
@@ -80,6 +84,14 @@ public class Peer {
   }
 
   public static void main(String[] args) {
+    // for serializing/deserializing message into/from streams
+    ObjectOutputStream outputStream = null;
+    ObjectInputStream inputStream = null;
+    Message msg;
+
+    // list of all active peers in the network
+    ArrayList<Pair<InetAddress, Integer>> Peers = new ArrayList<>();
+
     String connectionHost = null;
     int connectionPort = 0;
 
@@ -100,6 +112,14 @@ public class Peer {
         log.log("Connected at : " + connMan.getHostName() + " " + connMan.getConnectionPort());
         if ( connectionHost != null )
           clientSocket = new Socket(connectionHost, connectionPort);
+          outputStream = new ObjectOutputStream(new BufferedOutputStream(clientSocket.getOutputStream()));
+          //TBD
+          String [] msgArgs = null;
+          msg = new Message(CMD.ADDPEER, args);
+          // serialize message and send to server
+          outputStream.writeObject(msg);
+
+
         while ( true ) {
           Socket server = listener.accept();
           InetAddress connectedHost = server.getInetAddress();
