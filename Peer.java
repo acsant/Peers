@@ -28,7 +28,6 @@ public class Peer {
     EXIT,
     SETNEXT,
     SETPREV
-
   }
 
   // Marshalling
@@ -144,18 +143,25 @@ public class Peer {
       Socket server = null;
       try {
         connMan = new ConnectionManager();
-        listener = connMan.getAvailableConnection(); 
+        listener = connMan.getAvailableConnection();
+        Address currPeerAddress = new Address(connMan.getHostName(), connMan.getConnectionPort());
+
         log = new PSLogger(Peer.class.getName(),
             "Peer@" + connMan.getHostName() + ":" + connMan.getConnectionPort());
         log.log("Connected at : " + connMan.getHostName() + " " + connMan.getConnectionPort());
+
+
         if ( connectionHost != null ) {
+          // set prev of new peer to peer passed in as args
+          prev = new Address(connectionHost, connectionPort);
+
           log.log("Connection to server of : " + connectionHost + " : " + connectionPort);
           clientSocket = new Socket(connectionHost, connectionPort);
           ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
-          //TBD
-          String [] msgArgs = null;
-          msg = new Message(CMD.SETNEXT, args);
-          // serialize message and send to server
+          msg = new Message(CMD.SETNEXT, new String[]{
+                  connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+          });
+          // tell peer that was passed in as args to set its next to this newly added node
           outputStream.writeObject(msg);
         }
 
@@ -165,6 +171,11 @@ public class Peer {
 
           ObjectInputStream inStream = new ObjectInputStream(server.getInputStream());
           Message incoming = (Message) inStream.readObject();
+
+          Address oldNext = next;
+          // setNext
+          next = new Address(incoming.params[0], Integer.parseInt(incoming.params[1]));
+          // make socket call back to initial peer
 
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
