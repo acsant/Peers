@@ -7,12 +7,26 @@ import java.io.*;
 
 public class Peer {
 
+  // References to next and prev
+  Address prev = null;
+  Address next = null;
+
+  public static class Address {
+    String host;
+    int port;
+  
+    Address( String host, int port ) {
+      this.host = host;
+      this.port = port;
+    }
+  }
+
   // Enable Logging
   static PSLogger log;
 
   public enum CMD {
     EXIT,
-    ADDPEER
+    SETNEXT
   }
 
   // Marshalling
@@ -83,18 +97,17 @@ public class Peer {
     }
   }
 
-  private static void addPeer(String host, int port, ConnectionManager connMan) {
-    if (host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()) {
-      return;
+  private static void setNext(String host, int port, ConnectionManager connMan) {
+    if ( prev == null && next == null ) {
+      next = new Address(host, port);
     }
-    try {
-      Socket next = new Socket(host, port);
-      Message msg = new Message(CMD.ADDPEER, new String[] {connMan.getHostName(), String.valueOf(connMan.getConnectionPort())});
-      ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
-      outStream.writeObject(msg);
-    } catch (Exception e) {
-      log.log(e.getMessage());
-    }
+  
+    Socket clientSocket = new Socket(host, port);
+    ObjectInputStream inStream = new ObjectInputStream(clientSocket.getInputStream());
+    Message setPrevMsg = new Message(CMD.SETPREV, new String[] {
+      connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+    });
+
   }
 
   public static void main(String[] args) {
@@ -129,7 +142,7 @@ public class Peer {
           ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
           //TBD
           String [] msgArgs = null;
-          msg = new Message(CMD.ADDPEER, args);
+          msg = new Message(CMD.SETNEXT, args);
           // serialize message and send to server
           outputStream.writeObject(msg);
         }
@@ -143,8 +156,8 @@ public class Peer {
 
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
-            case ADDPEER:
-              addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+            case SETNEXT:
+              setNext(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case EXIT:
               break;
