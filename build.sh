@@ -15,4 +15,6 @@ $JAVA_CC -version
 $JAVA_CC -cp .:"lib/*" PSLogger.java
 $JAVA_CC -cp .:"lib/*" Peer.java 
 $JAVA_CC -cp .:"lib/*" AddPeer.java
-
+$JAVA_CC -cp .:"lib/*" RemovePeer.java
+$JAVA_CC -cp .:"lib/*" CMD.java
+$JAVA_CC -cp .:"lib/*" Message.java

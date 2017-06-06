@@ -24,24 +24,6 @@ public class Peer {
   // Enable Logging
   static PSLogger log;
 
-  public enum CMD {
-    EXIT,
-    SETNEXT,
-    SETPREV,
-    ADDPEER
-  }
-
-  // Marshalling
-  private static class Message implements Serializable {
-    CMD cmd;
-    String[] params;
-
-    Message (CMD cmd, String[] params) {
-      this.cmd = cmd;
-      this.params = params;
-    }
-  }
-
   private static class ConnectionManager {
     private InetAddress hostAddr;
     private static final int MIN_PORT = 10000;
@@ -98,7 +80,25 @@ public class Peer {
       return hostAddr.getHostAddress();
     }
   }
-  
+
+  /**
+   * Re-sync the network when removing the peer
+   */
+  private static void removeAndSync () {
+    Message setNextsPrev = new Message(CMD.SETPREV, new String[] {
+      prev.host, String.valueOf(prev.port)
+    });
+    sendMessage(setNextsPrev, next.host, next.port);
+
+    Message setPrevsNext = new Message(CMD.SETNEXT, new String[] {
+      next.host, String.valueOf(next.port), "true"
+    });
+    sendMessage(setPrevsNext, prev.host, prev.port);
+    prev = next = null;
+    log.log("Peer exiting");
+    System.exit(0);
+  }
+
   /**
    * Adds peer to the current network
    */
@@ -112,7 +112,7 @@ public class Peer {
     next = newAddr;
     // Set Next
     Message msg = new Message(CMD.SETNEXT, new String[] {
-      temp.host, String.valueOf(temp.port)
+      temp.host, String.valueOf(temp.port), "false"
     });
     sendMessage( msg, host, port );
 
@@ -126,14 +126,16 @@ public class Peer {
   /**
    * Set the next peer in the system
    */
-  private static void setNext( String host, int port, ConnectionManager connMan ) {
+  private static void setNext( String host, int port, boolean isRemove, ConnectionManager connMan ) {
     next = new Address( host, port );
     log.log("New next is " + next.host + "@" + next.port);
     // Set next's prev to complete circle
-    Message msg = new Message (CMD.SETPREV, new String[] {
-      connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
-    });
-    sendMessage(msg, host, port);
+    if (!isRemove) {
+      Message msg = new Message (CMD.SETPREV, new String[] {
+        connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+      });
+      sendMessage(msg, host, port);
+    }
   }
 
   /**
@@ -213,7 +215,7 @@ public class Peer {
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
             case SETNEXT:
-              setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+              setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), Boolean.parseBoolean(incoming.params[2]), connMan);
               break;
             case SETPREV:
               setPrev( incoming.params[0], Integer.parseInt(incoming.params[1]));
@@ -222,6 +224,7 @@ public class Peer {
               addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case EXIT:
+              removeAndSync();
               break;
             default:
               break;
