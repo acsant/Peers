@@ -14,7 +14,7 @@ public class Peer {
   public static class Address {
     String host;
     int port;
-  
+
     Address( String host, int port ) {
       this.host = host;
       this.port = port;
@@ -27,7 +27,8 @@ public class Peer {
   public enum CMD {
     EXIT,
     SETNEXT,
-    SETPREV
+    SETPREV,
+    ADDPEER
   }
 
   // Marshalling
@@ -98,26 +99,85 @@ public class Peer {
     }
   }
 
-  private static void setLink(CMD linkDir, String host, int port, ConnectionManager connMan) {
-    if (linkDir == CMD.SETPREV) {
-      prev = new Address(host, port);
-    } else if (linkDir == CMD.SETNEXT) {
-      if (prev == null && next == null) {
-        next = new Address(host, port);
-      }
+  private static void addPeer( String host, int port, ConnectionManager connMan ) {
+    log.log("Adding new Peer : " + host + "@" + port);
+    Address newAddr = new Address( host, port );
+    // if ( prev == null && next == null ) {
+    //   log.log("This is first peer in the system");
+    //   prev = next = newAddr;
+    //   return;
+    // }
+
+    Address temp = next;
+    // Change next to new next
+    log.log("New next is " + newAddr.host + "@" + newAddr.port);
+    next = newAddr;
+    // Set Next
+    Message msg = new Message(CMD.SETNEXT, new String[] {
+      temp.host, String.valueOf(temp.port)
+    });
+    sendMessage( msg, host, port );
+
+    // Set Prev
+    Message msgPrev = new Message(CMD.SETPREV, new String[] {
+      connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+    });
+    sendMessage( msgPrev, host, port );
+  }
+
+  private static void setNext( String host, int port, ConnectionManager connMan ) {
+    next = new Address( host, port );
+    log.log("New next is " + next.host + "@" + next.port);
+    // Set next's prev to complete circle
+    Message msg = new Message (CMD.SETPREV, new String[] {
+      connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+    });
+    sendMessage(msg, host, port);
+  }
+
+  private static void setPrev ( String host, int port ) {
+    prev = new Address( host, port );
+    log.log("New prev is " + prev.host + "@" + prev.port);
+  }
+
+  //private static void setLink(CMD linkDir, String host, int port, ConnectionManager connMan) {
+  //  if (linkDir == CMD.SETPREV) {
+  //    prev = new Address(host, port);
+  //  } else if (linkDir == CMD.SETNEXT) {
+  //    if (prev == null && next == null) {
+  //      next = new Address(host, port);
+  //    }
+  //    try {
+  //      Socket clientSocket = new Socket(host, port);
+
+  //      ObjectOutputStream inStream = new ObjectOutputStream(clientSocket.getOutputStream());
+  //      Message setPrevMsg = new Message(CMD.SETPREV, new String[]{
+  //              connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+  //      });
+
+  //      inStream.writeObject(setPrevMsg);
+
+  //    } catch (Exception e) {
+  //      log.log(e.getMessage());
+  //    }
+  //  }
+  //}
+
+  private static void sendMessage( Message msg, String host, int port ) {
+    try {
+      Socket clientSocket = null;
       try {
-        Socket clientSocket = new Socket(host, port);
-
-        ObjectOutputStream inStream = new ObjectOutputStream(clientSocket.getOutputStream());
-        Message setPrevMsg = new Message(CMD.SETPREV, new String[]{
-                connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
-        });
-
-        inStream.writeObject(setPrevMsg);
-
-      } catch (Exception e) {
+        clientSocket= new Socket( host, port );
+        ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
+        outputStream.writeObject(msg);
+      } catch (IOException e) {
         log.log(e.getMessage());
+      } finally {
+        if (clientSocket != null)
+          clientSocket.close();
       }
+    } catch (IOException e) {
+      log.log(e.getMessage());
     }
   }
 
@@ -137,7 +197,6 @@ public class Peer {
     }
 
     ConnectionManager connMan;
-    Socket clientSocket = null;
     ServerSocket listener = null;
     try {
       Socket server = null;
@@ -153,17 +212,18 @@ public class Peer {
 
         if ( connectionHost != null ) {
           // set prev of new peer to peer passed in as args
-          prev = new Address(connectionHost, connectionPort);
+          //prev = new Address(connectionHost, connectionPort);
 
           log.log("Connection to server of : " + connectionHost + " : " + connectionPort);
-          clientSocket = new Socket(connectionHost, connectionPort);
-          ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
-          msg = new Message(CMD.SETNEXT, new String[]{
-                  connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+          msg = new Message(CMD.ADDPEER, new String[]{
+            connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
           });
           // tell peer that was passed in as args to set its next to this newly added node
-          outputStream.writeObject(msg);
+          sendMessage(msg, connectionHost, connectionPort);
+        } else {
+          prev = next = new Address(connMan.getHostName(), connMan.getConnectionPort());
         }
+
 
         while ( true ) {
           server = listener.accept();
@@ -172,18 +232,21 @@ public class Peer {
           ObjectInputStream inStream = new ObjectInputStream(server.getInputStream());
           Message incoming = (Message) inStream.readObject();
 
-          Address oldNext = next;
+          //Address oldNext = next;
           // setNext
-          next = new Address(incoming.params[0], Integer.parseInt(incoming.params[1]));
+          //next = new Address(incoming.params[0], Integer.parseInt(incoming.params[1]));
           // make socket call back to initial peer
 
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
             case SETNEXT:
-              setLink(CMD.SETNEXT,incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+              setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case SETPREV:
-              setLink(CMD.SETPREV,incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+              setPrev( incoming.params[0], Integer.parseInt(incoming.params[1]));
+              break;
+            case ADDPEER:
+              addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case EXIT:
               break;
@@ -197,8 +260,8 @@ public class Peer {
       } finally {
         listener.close();
         server.close();
-        if ( clientSocket != null )
-          clientSocket.close();
+        //if ( clientSocket != null )
+        //  clientSocket.close();
       }
 
     } catch (IOException e) {
