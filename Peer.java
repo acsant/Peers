@@ -9,6 +9,7 @@ public class Peer {
 
   // Enable Logging
   static PSLogger log;
+  private static DHT hashTable = new DHT();
 
   private static class ConnectionManager {
     private InetAddress hostAddr;
@@ -81,6 +82,12 @@ public class Peer {
     }
   }
 
+  private static void addContent(String host, int port, String content) {
+    int key = hashTable.insert(content);
+    log.log(Integer.toString(key));
+    // TODO: need to communicate back to AddContent.java to tell it to print key
+  }
+
   public static void main(String[] args) {
     // for serializing/deserializing message into/from streams
     Message msg;
@@ -128,12 +135,16 @@ public class Peer {
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
             case ADDPEER:
+              log.log("ADDPEER");
               addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case EXIT:
-              log.log("here");
+              log.log("EXIT");
               System.exit(0);
               break;
+            case ADDCONTENT:
+              log.log("ADDCONTENT");
+              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2]);
             default:
               break;
           }

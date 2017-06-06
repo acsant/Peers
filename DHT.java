@@ -8,10 +8,7 @@ public class DHT {
 
   Map<Integer, String> map = new HashMap<>();
 
-  DHT ( InetAddress host, int port ) {
-    this.host = host;
-    this.port = port;
-  }
+  public DHT () {}
 
   public int insert(String content) {
     int key = (int) System.nanoTime();

@@ -18,3 +18,5 @@ $JAVA_CC -cp .:"lib/*" AddPeer.java
 $JAVA_CC -cp .:"lib/*" RemovePeer.java
 $JAVA_CC -cp .:"lib/*" CMD.java
 $JAVA_CC -cp .:"lib/*" Message.java
+$JAVA_CC -cp .:"lib/*" DHT.java
+$JAVA_CC -cp .:"lib/*" AddContent.java

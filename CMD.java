@@ -1,4 +1,5 @@
   public enum CMD {
     EXIT,
-    ADDPEER
+    ADDPEER,
+    ADDCONTENT
   }
