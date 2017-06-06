@@ -1,0 +1,3 @@
+Trying to remove peer twice
+Trying to get content from peer that does not exist
+Trying to get content for key that does not exists

@@ -1,5 +1,8 @@
   public enum CMD {
     EXIT,
     ADDPEER,
-    ADDCONTENT
+    ADDCONTENT,
+    REMOVECONTENT,
+    LOOKUPCONTENT,
+    ALLKEYS
   }

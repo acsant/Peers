@@ -20,3 +20,6 @@ $JAVA_CC -cp .:"lib/*" CMD.java
 $JAVA_CC -cp .:"lib/*" Message.java
 $JAVA_CC -cp .:"lib/*" DHT.java
 $JAVA_CC -cp .:"lib/*" AddContent.java
+$JAVA_CC -cp .:"lib/*" RemoveContent.java
+$JAVA_CC -cp .:"lib/*" LookupContent.java
+$JAVA_CC -cp .:"lib/*" AllKeys.java

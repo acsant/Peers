@@ -83,9 +83,30 @@ public class Peer {
   }
 
   private static void addContent(String host, int port, String content) {
-    int key = hashTable.insert(content);
-    log.log(Integer.toString(key));
+    long key = hashTable.insert(content);
+    log.log(Long.toString(key));
     // TODO: need to communicate back to AddContent.java to tell it to print key
+  }
+
+  private static void removeContent(String host, int port, long key) {
+    Boolean success = hashTable.removeByKey(key);
+    if (success) {
+      log.log("Removal success");  
+    } else {
+      log.log("Removal failed");  
+    }
+    
+  }
+
+  private static void lookupContent(String host, int port, long key) {
+    String content = hashTable.retrieve(key);
+    log.log(content); 
+    // TODO: need to communicate back to LookupContent.java to tell it to print key
+  }
+
+  private static void allKeys(String host, int port) {
+    String allKeys = hashTable.getAllKeys();
+    log.log(allKeys);
   }
 
   public static void main(String[] args) {
@@ -145,6 +166,19 @@ public class Peer {
             case ADDCONTENT:
               log.log("ADDCONTENT");
               addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2]);
+              break;
+            case REMOVECONTENT:
+              log.log("REMOVECONTENT");
+              removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+              break;
+            case LOOKUPCONTENT:
+              log.log("LOOKUPCONTENT");
+              lookupContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+              break;
+            case ALLKEYS:
+              log.log("ALLKEYS");
+              allKeys(incoming.params[0], Integer.parseInt(incoming.params[1]));
+              break;
             default:
               break;
           }
