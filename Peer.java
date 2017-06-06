@@ -98,15 +98,13 @@ public class Peer {
       return hostAddr.getHostAddress();
     }
   }
-
+  
+  /**
+   * Adds peer to the current network
+   */
   private static void addPeer( String host, int port, ConnectionManager connMan ) {
     log.log("Adding new Peer : " + host + "@" + port);
     Address newAddr = new Address( host, port );
-    // if ( prev == null && next == null ) {
-    //   log.log("This is first peer in the system");
-    //   prev = next = newAddr;
-    //   return;
-    // }
 
     Address temp = next;
     // Change next to new next
@@ -125,6 +123,9 @@ public class Peer {
     sendMessage( msgPrev, host, port );
   }
 
+  /**
+   * Set the next peer in the system
+   */
   private static void setNext( String host, int port, ConnectionManager connMan ) {
     next = new Address( host, port );
     log.log("New next is " + next.host + "@" + next.port);
@@ -135,33 +136,13 @@ public class Peer {
     sendMessage(msg, host, port);
   }
 
+  /**
+   * Sets the previous peer
+   */
   private static void setPrev ( String host, int port ) {
     prev = new Address( host, port );
     log.log("New prev is " + prev.host + "@" + prev.port);
   }
-
-  //private static void setLink(CMD linkDir, String host, int port, ConnectionManager connMan) {
-  //  if (linkDir == CMD.SETPREV) {
-  //    prev = new Address(host, port);
-  //  } else if (linkDir == CMD.SETNEXT) {
-  //    if (prev == null && next == null) {
-  //      next = new Address(host, port);
-  //    }
-  //    try {
-  //      Socket clientSocket = new Socket(host, port);
-
-  //      ObjectOutputStream inStream = new ObjectOutputStream(clientSocket.getOutputStream());
-  //      Message setPrevMsg = new Message(CMD.SETPREV, new String[]{
-  //              connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
-  //      });
-
-  //      inStream.writeObject(setPrevMsg);
-
-  //    } catch (Exception e) {
-  //      log.log(e.getMessage());
-  //    }
-  //  }
-  //}
 
   private static void sendMessage( Message msg, String host, int port ) {
     try {
@@ -211,9 +192,6 @@ public class Peer {
 
 
         if ( connectionHost != null ) {
-          // set prev of new peer to peer passed in as args
-          //prev = new Address(connectionHost, connectionPort);
-
           log.log("Connection to server of : " + connectionHost + " : " + connectionPort);
           msg = new Message(CMD.ADDPEER, new String[]{
             connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
@@ -231,11 +209,6 @@ public class Peer {
 
           ObjectInputStream inStream = new ObjectInputStream(server.getInputStream());
           Message incoming = (Message) inStream.readObject();
-
-          //Address oldNext = next;
-          // setNext
-          //next = new Address(incoming.params[0], Integer.parseInt(incoming.params[1]));
-          // make socket call back to initial peer
 
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
@@ -260,8 +233,6 @@ public class Peer {
       } finally {
         listener.close();
         server.close();
-        //if ( clientSocket != null )
-        //  clientSocket.close();
       }
 
     } catch (IOException e) {
