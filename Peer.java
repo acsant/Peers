@@ -131,6 +131,8 @@ public class Peer {
               addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case EXIT:
+              log.log("here");
+              System.exit(0);
               break;
             default:
               break;
