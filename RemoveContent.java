@@ -29,4 +29,4 @@ public class RemoveContent {
   }
 }
 
-// 10.20.177.174 10000
+// 10.20.177.174 10000 numbers and letters and shit

@@ -29,7 +29,8 @@ public class Peer {
     EXIT,
     SETNEXT,
     SETPREV,
-    ADDPEER
+    ADDPEER,
+    PRINTKEY
   }
 
   // Marshalling
@@ -182,10 +183,15 @@ public class Peer {
     }
   }
 
-  private static void addContent(String host, int port, String content) {
+  private static void addContent(String host, int port, String content, ConnectionManager connMan) {
     long key = hashTable.insert(content);
-    log.log(Long.toString(key));
-    // TODO: need to communicate back to AddContent.java to tell it to print key
+    log.log("Key created: " + Long.toString(key));
+    // Communicate back to AddContent.java to tell it to print key
+    // TODO: ensure the host/port passed is the right one for addContent
+    Message keyMsg = new Message(CMD.PRINTKEY, new String[] {
+            connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+    });
+    sendMessage(keyMsg, host, port);
   }
 
   private static void removeContent(String host, int port, long key) {
@@ -283,7 +289,7 @@ public class Peer {
               break;
             case ADDCONTENT:
               log.log("ADDCONTENT");
-              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2]);
+              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2]), connMan;
               break;
             case REMOVECONTENT:
               log.log("REMOVECONTENT");

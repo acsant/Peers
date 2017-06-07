@@ -23,9 +23,24 @@ public class AddContent {
       Message msg = new Message(CMD.ADDCONTENT, new String[] { host, Integer.toString(port), content });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
       outStream.writeObject(msg);
+
+      // Accept server socket connections to output key
+      ServerSocket listener = ConnectionManager.getAvailableConnection();
+      Socket server = listener.accept();
+
+      ObjectInputStream inStream = new ObjectInputStream(server.getInputStream());
+      Message incoming = (Message) inStream.readObject();
+
+      // output key
+      System.out.println(incoming.params[0]);
+
+
+
     } catch (Exception e) {
       e.printStackTrace();
     }
+
+
   }
 }
 
