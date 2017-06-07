@@ -108,15 +108,23 @@ public class Peer {
     }
   }
 
-  private static void addContent(String host, int port, String content, ConnectionManager connMan) {
-    long key = hashTable.insert(content);
-    log.log("Key created: " + Long.toString(key));
+  private static void addContent(String host, int port, String content, int max, ConnectionManager connMan) {
+    log.log("ENTERING ADDCONTENT");
+    if ( hashTable.size() == 0 || hashTable.size() < max || (max != -1 && (
+              host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()
+            )) ) {
+      long key = hashTable.insert(content);
+      log.log("Key created: " + Long.toString(key));
+    
     // Communicate back to AddContent.java to tell it to print key
     // TODO: ensure the host/port passed is the right one for addContent
-    Message keyMsg = new Message(CMD.PRINTKEY, new String[] {
-            connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
-    });
-    sendMessage(keyMsg, host, port);
+    } else {
+      Message distContent = new Message(CMD.ADDCONTENT, new String[] {
+        host, String.valueOf(port), content, String.valueOf(hashTable.size())
+      });
+      log.log("finding next storage at : " + next.host + "@" + next.port);
+      sendMessage(distContent, next.host, next.port);
+    }
   }
 
   private static void removeContent(String host, int port, long key) {
@@ -203,8 +211,8 @@ public class Peer {
               removeAndSync();
               break;
             case ADDCONTENT:
-              log.log("ADDCONTENT");
-              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2], connMan);
+              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2], 
+                  Integer.parseInt(incoming.params[3]), connMan);
               break;
             case REMOVECONTENT:
               log.log("REMOVECONTENT");
@@ -224,7 +232,7 @@ public class Peer {
         }
 
       } catch (Exception e) {
-        log.log(e.getMessage());
+        log.log("Exception:" + e.getStackTrace().toString());
       } finally {
         listener.close();
         server.close();
