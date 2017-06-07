@@ -44,6 +44,24 @@ public class Peer {
   }
 
   /**
+   * Load balance across all the peers
+   */
+  private static void loadBalance ( String host, int port, int contentCount, int peerCount, ConnectionManager connMan ) {
+    if ( peerCount != 0 && host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()) {
+      int lower = (int) Math.floor(contentCount / peerCount);
+      int upper = (int) Math.ceil(contentCount / peerCount);
+      
+
+    }
+    contentCount += hashTable.size();
+    peerCount ++;
+    Message countMsg = new Message( CMD.COUNT, new String[] {
+      host, String.valueOf(port), String.valueOf(contentCount), String.valueOf(peerCount)
+    });
+    sendMessage( countMsg, next.host, next.port );
+  }
+
+  /**
    * Adds peer to the current network
    */
   private static void addPeer( String host, int port, ConnectionManager connMan ) {
@@ -108,19 +126,24 @@ public class Peer {
     }
   }
 
-  private static void addContent(String host, int port, String content, int max, ConnectionManager connMan) {
+  private static void addContent(String host, int port, Long paramKey, String content, int max, ConnectionManager connMan) {
     log.log("ENTERING ADDCONTENT");
     if ( hashTable.size() == 0 || hashTable.size() < max || (max != -1 && (
               host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()
             )) ) {
-      long key = hashTable.insert(content);
+      long key = paramKey;
+      if ( paramKey == 0 ) {
+        key = hashTable.insert(content);
+      } else {
+        hashTable.put(key, content);
+      }
       log.log("Key created: " + Long.toString(key));
     
     // Communicate back to AddContent.java to tell it to print key
     // TODO: ensure the host/port passed is the right one for addContent
     } else {
       Message distContent = new Message(CMD.ADDCONTENT, new String[] {
-        host, String.valueOf(port), content, String.valueOf(hashTable.size())
+        host, String.valueOf(port), String.valueOf(paramKey), content, String.valueOf(hashTable.size())
       });
       log.log("finding next storage at : " + next.host + "@" + next.port);
       sendMessage(distContent, next.host, next.port);
@@ -194,6 +217,8 @@ public class Peer {
           prev = next = new Address(connMan.getHostName(), connMan.getConnectionPort());
         }
 
+        // Load balancing occurs here
+
 
         while ( true ) {
           server = listener.accept();
@@ -217,8 +242,10 @@ public class Peer {
               removeAndSync();
               break;
             case ADDCONTENT:
-              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2], 
-                  Integer.parseInt(incoming.params[3]), connMan);
+              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]),
+                  Long.parseLong(incoming.params[2]),
+                  incoming.params[3], 
+                  Integer.parseInt(incoming.params[4]), connMan);
               break;
             case REMOVECONTENT:
               log.log("REMOVECONTENT");

@@ -18,9 +18,12 @@ public class AddContent {
       content = args[2];
     }
 
+    Socket next = null;
     try {
-      Socket next = new Socket(host, port);
-      Message msg = new Message(CMD.ADDCONTENT, new String[] { host, Integer.toString(port), content, "-1" });
+      next = new Socket(host, port);
+      long initKey = 0;
+      Message msg = new Message(CMD.ADDCONTENT, new String[] { host, String.valueOf(port), 
+        String.valueOf(initKey), content, "-1" });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
       outStream.writeObject(msg);
 
