@@ -1,0 +1,13 @@
+import java.util.*;
+
+public enum CMD {
+  EXIT,
+  SETNEXT,
+  SETPREV,
+  ADDPEER,
+  PRINTKEY,
+  ADDCONTENT,
+  LOOKUPCONTENT,
+  ALLKEYS,
+  REMOVECONTENT
+}

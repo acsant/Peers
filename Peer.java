@@ -23,90 +23,32 @@ public class Peer {
 
   // Enable Logging
   static PSLogger log;
+  private static DHT hashTable = new DHT();
 
-  public enum CMD {
-    EXIT,
-    SETNEXT,
-    SETPREV,
-    ADDPEER
+  /**
+   * Re-sync the network when removing the peer
+   */
+  private static void removeAndSync () {
+    Message setNextsPrev = new Message(CMD.SETPREV, new String[] {
+      prev.host, String.valueOf(prev.port)
+    });
+    sendMessage(setNextsPrev, next.host, next.port);
+
+    Message setPrevsNext = new Message(CMD.SETNEXT, new String[] {
+      next.host, String.valueOf(next.port), "true"
+    });
+    sendMessage(setPrevsNext, prev.host, prev.port);
+    prev = next = null;
+    log.log("Peer exiting");
+    System.exit(0);
   }
 
-  // Marshalling
-  private static class Message implements Serializable {
-    CMD cmd;
-    String[] params;
-
-    Message (CMD cmd, String[] params) {
-      this.cmd = cmd;
-      this.params = params;
-    }
-  }
-
-  private static class ConnectionManager {
-    private InetAddress hostAddr;
-    private static final int MIN_PORT = 10000;
-    private static final int MAX_PORT = 11000;
-    private int connectionPort;
-
-    ConnectionManager() throws SocketException {
-      hostAddr = getNextNonLoopbackAddr();
-    }
-
-    /**
-     * Credit: This code snippet was taken from :
-     * http://www.java2s.com/Code/Java/Network-Protocol/FindsalocalnonloopbackIPv4address.htm
-     */
-    private InetAddress getNextNonLoopbackAddr() throws SocketException {
-      Enumeration<NetworkInterface> ifaceList = NetworkInterface.getNetworkInterfaces();
-      while ( ifaceList.hasMoreElements() ) {
-        NetworkInterface iface = ifaceList.nextElement();
-        Enumeration<InetAddress> addresses = iface.getInetAddresses();
-
-        while ( addresses.hasMoreElements() ) {
-          InetAddress addr = addresses.nextElement();
-          if ( addr instanceof Inet4Address && !addr.isLoopbackAddress() ) {
-            return addr;
-          }
-        }
-      }
-      return null;
-    }
-
-    public ServerSocket getAvailableConnection() throws IOException {
-      // Generate random port
-      int port = MIN_PORT;
-      ServerSocket conn = new ServerSocket();
-      while ( port <= MAX_PORT ) {
-        try {
-          conn.bind(new InetSocketAddress(hostAddr, port));;
-          break;
-        } catch (IOException e) {
-          port++;
-        }
-      }
-
-      connectionPort = port;
-      conn.setReuseAddress(false);
-      return conn;
-    }
-
-    public int getConnectionPort() {
-      return connectionPort;
-    }
-
-    public String getHostName() {
-      return hostAddr.getHostAddress();
-    }
-  }
-
+  /**
+   * Adds peer to the current network
+   */
   private static void addPeer( String host, int port, ConnectionManager connMan ) {
     log.log("Adding new Peer : " + host + "@" + port);
     Address newAddr = new Address( host, port );
-    // if ( prev == null && next == null ) {
-    //   log.log("This is first peer in the system");
-    //   prev = next = newAddr;
-    //   return;
-    // }
 
     Address temp = next;
     // Change next to new next
@@ -114,7 +56,7 @@ public class Peer {
     next = newAddr;
     // Set Next
     Message msg = new Message(CMD.SETNEXT, new String[] {
-      temp.host, String.valueOf(temp.port)
+      temp.host, String.valueOf(temp.port), "false"
     });
     sendMessage( msg, host, port );
 
@@ -125,43 +67,28 @@ public class Peer {
     sendMessage( msgPrev, host, port );
   }
 
-  private static void setNext( String host, int port, ConnectionManager connMan ) {
+  /**
+   * Set the next peer in the system
+   */
+  private static void setNext( String host, int port, boolean isRemove, ConnectionManager connMan ) {
     next = new Address( host, port );
     log.log("New next is " + next.host + "@" + next.port);
     // Set next's prev to complete circle
-    Message msg = new Message (CMD.SETPREV, new String[] {
-      connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
-    });
-    sendMessage(msg, host, port);
+    if (!isRemove) {
+      Message msg = new Message (CMD.SETPREV, new String[] {
+        connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+      });
+      sendMessage(msg, host, port);
+    }
   }
 
+  /**
+   * Sets the previous peer
+   */
   private static void setPrev ( String host, int port ) {
     prev = new Address( host, port );
     log.log("New prev is " + prev.host + "@" + prev.port);
   }
-
-  //private static void setLink(CMD linkDir, String host, int port, ConnectionManager connMan) {
-  //  if (linkDir == CMD.SETPREV) {
-  //    prev = new Address(host, port);
-  //  } else if (linkDir == CMD.SETNEXT) {
-  //    if (prev == null && next == null) {
-  //      next = new Address(host, port);
-  //    }
-  //    try {
-  //      Socket clientSocket = new Socket(host, port);
-
-  //      ObjectOutputStream inStream = new ObjectOutputStream(clientSocket.getOutputStream());
-  //      Message setPrevMsg = new Message(CMD.SETPREV, new String[]{
-  //              connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
-  //      });
-
-  //      inStream.writeObject(setPrevMsg);
-
-  //    } catch (Exception e) {
-  //      log.log(e.getMessage());
-  //    }
-  //  }
-  //}
 
   private static void sendMessage( Message msg, String host, int port ) {
     try {
@@ -179,6 +106,52 @@ public class Peer {
     } catch (IOException e) {
       log.log(e.getMessage());
     }
+  }
+
+  private static void addContent(String host, int port, String content, int max, ConnectionManager connMan) {
+    log.log("ENTERING ADDCONTENT");
+    if ( hashTable.size() == 0 || hashTable.size() < max || (max != -1 && (
+              host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()
+            )) ) {
+      long key = hashTable.insert(content);
+      log.log("Key created: " + Long.toString(key));
+    
+    // Communicate back to AddContent.java to tell it to print key
+    // TODO: ensure the host/port passed is the right one for addContent
+    } else {
+      Message distContent = new Message(CMD.ADDCONTENT, new String[] {
+        host, String.valueOf(port), content, String.valueOf(hashTable.size())
+      });
+      log.log("finding next storage at : " + next.host + "@" + next.port);
+      sendMessage(distContent, next.host, next.port);
+    }
+  }
+
+  private static void removeContent(String host, int port, long key, boolean visitedAll) {
+    if ( visitedAll ) {
+      log.log("No such content");
+    } else if ( hashTable.contains(key) ) {
+      hashTable.removeByKey(key);
+    } else {
+      String checkedAll = "false";
+      if (next.host.equals(host) && next.port == port)
+        checkedAll = "true";
+      Message removeMsg = new Message(CMD.REMOVECONTENT, new String[] {
+        host, String.valueOf(port), String.valueOf(key), checkedAll
+      });
+      sendMessage(removeMsg, next.host, next.port);
+    }
+  }
+
+  private static void lookupContent(String host, int port, long key) {
+    String content = hashTable.retrieve(key);
+    log.log(content); 
+    // TODO: need to communicate back to LookupContent.java to tell it to print key
+  }
+
+  private static void allKeys(String host, int port) {
+    String allKeys = hashTable.getAllKeys();
+    log.log(allKeys);
   }
 
   public static void main(String[] args) {
@@ -211,9 +184,6 @@ public class Peer {
 
 
         if ( connectionHost != null ) {
-          // set prev of new peer to peer passed in as args
-          //prev = new Address(connectionHost, connectionPort);
-
           log.log("Connection to server of : " + connectionHost + " : " + connectionPort);
           msg = new Message(CMD.ADDPEER, new String[]{
             connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
@@ -232,15 +202,10 @@ public class Peer {
           ObjectInputStream inStream = new ObjectInputStream(server.getInputStream());
           Message incoming = (Message) inStream.readObject();
 
-          //Address oldNext = next;
-          // setNext
-          //next = new Address(incoming.params[0], Integer.parseInt(incoming.params[1]));
-          // make socket call back to initial peer
-
           log.log("Message Recieved: " + incoming.cmd);
           switch (incoming.cmd) {
             case SETNEXT:
-              setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+              setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), Boolean.parseBoolean(incoming.params[2]), connMan);
               break;
             case SETPREV:
               setPrev( incoming.params[0], Integer.parseInt(incoming.params[1]));
@@ -249,6 +214,23 @@ public class Peer {
               addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             case EXIT:
+              removeAndSync();
+              break;
+            case ADDCONTENT:
+              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2], 
+                  Integer.parseInt(incoming.params[3]), connMan);
+              break;
+            case REMOVECONTENT:
+              log.log("REMOVECONTENT");
+              removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]), Boolean.parseBoolean(incoming.params[3]));
+              break;
+            case LOOKUPCONTENT:
+              log.log("LOOKUPCONTENT");
+              lookupContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+              break;
+            case ALLKEYS:
+              log.log("ALLKEYS");
+              allKeys(incoming.params[0], Integer.parseInt(incoming.params[1]));
               break;
             default:
               break;
@@ -256,12 +238,10 @@ public class Peer {
         }
 
       } catch (Exception e) {
-        log.log(e.getMessage());
+        log.log("Exception:" + e.getStackTrace().toString());
       } finally {
         listener.close();
         server.close();
-        //if ( clientSocket != null )
-        //  clientSocket.close();
       }
 
     } catch (IOException e) {
