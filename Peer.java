@@ -39,6 +39,19 @@ public class Peer {
     });
     sendMessage(setPrevsNext, prev.host, prev.port);
     prev = next = null;
+
+    // TODO: account for last peer in the network
+
+    // Load balance all current content into other peers
+    for (Map.Entry<Long, String> entry : hashTable.getMap().entrySet()) {
+      Long key = entry.getKey();
+      String content = entry.getValue();
+      Message addContentMsg = new Message(CMD.ADDCONTENT, new String[] {
+        next.host, String.valueOf(next.port), String.valueOf(key), content, "-1"
+      });
+      sendMessage(addContentMsg, next.host, next.port);
+    }
+
     log.log("Peer exiting");
     System.exit(0);
   }
