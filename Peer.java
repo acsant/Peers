@@ -127,14 +127,20 @@ public class Peer {
     }
   }
 
-  private static void removeContent(String host, int port, long key) {
-    Boolean success = hashTable.removeByKey(key);
-    if (success) {
-      log.log("Removal success");  
+  private static void removeContent(String host, int port, long key, boolean visitedAll) {
+    if ( visitedAll ) {
+      log.log("No such content");
+    } else if ( hashTable.contains(key) ) {
+      hashTable.removeByKey(key);
     } else {
-      log.log("Removal failed");  
+      String checkedAll = "false";
+      if (next.host.equals(host) && next.port == port)
+        checkedAll = "true";
+      Message removeMsg = new Message(CMD.REMOVECONTENT, new String[] {
+        host, String.valueOf(port), String.valueOf(key), checkedAll
+      });
+      sendMessage(removeMsg, next.host, next.port);
     }
-    
   }
 
   private static void lookupContent(String host, int port, long key) {
@@ -216,7 +222,7 @@ public class Peer {
               break;
             case REMOVECONTENT:
               log.log("REMOVECONTENT");
-              removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+              removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]), Boolean.parseBoolean(incoming.params[3]));
               break;
             case LOOKUPCONTENT:
               log.log("LOOKUPCONTENT");

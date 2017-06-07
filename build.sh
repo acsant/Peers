@@ -21,5 +21,6 @@ $JAVA_CC -cp .:"lib/*" Message.java
 $JAVA_CC -cp .:"lib/*" ConnectionManager.java
 $JAVA_CC -cp .:"lib/*" AddContent.java
 $JAVA_CC -cp .:"lib/*" DHT.java
+$JAVA_CC -cp .:"lib/*" RemoveContent.java
 
 

@@ -16,14 +16,8 @@ public class DHT {
   	return map.get(key);
   }
 
-  public Boolean removeByKey(long key) {
-    if (map.containsKey(key)) {
-      map.remove(key);
-      return true;
-    } else {
-      return false;
-    }
-    
+  public void removeByKey(long key) {
+    map.remove(key);
   }
 
   public String getAllKeys() {
@@ -38,8 +32,16 @@ public class DHT {
     return stringified;
   }
 
+  public void put(Long key, String value) {
+    map.put(key, value);
+  }
+
   public int size() {
     return map.size();
+  }
+
+  public boolean contains(Long key) {
+    return map.containsKey(key);
   }
 
 }
