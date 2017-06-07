@@ -23,63 +23,7 @@ public class Peer {
 
   // Enable Logging
   static PSLogger log;
-
-  private static class ConnectionManager {
-    private InetAddress hostAddr;
-    private static final int MIN_PORT = 10000;
-    private static final int MAX_PORT = 11000;
-    private int connectionPort;
-
-    ConnectionManager() throws SocketException {
-      hostAddr = getNextNonLoopbackAddr();
-    }
-
-    /**
-     * Credit: This code snippet was taken from :
-     * http://www.java2s.com/Code/Java/Network-Protocol/FindsalocalnonloopbackIPv4address.htm
-     */
-    private InetAddress getNextNonLoopbackAddr() throws SocketException {
-      Enumeration<NetworkInterface> ifaceList = NetworkInterface.getNetworkInterfaces();
-      while ( ifaceList.hasMoreElements() ) {
-        NetworkInterface iface = ifaceList.nextElement();
-        Enumeration<InetAddress> addresses = iface.getInetAddresses();
-
-        while ( addresses.hasMoreElements() ) {
-          InetAddress addr = addresses.nextElement();
-          if ( addr instanceof Inet4Address && !addr.isLoopbackAddress() ) {
-            return addr;
-          }
-        }
-      }
-      return null;
-    }
-
-    public ServerSocket getAvailableConnection() throws IOException {
-      // Generate random port
-      int port = MIN_PORT;
-      ServerSocket conn = new ServerSocket();
-      while ( port <= MAX_PORT ) {
-        try {
-          conn.bind(new InetSocketAddress(hostAddr, port));;
-          break;
-        } catch (IOException e) {
-          port++;
-        }
-      }
-
-      connectionPort = port;
-      conn.setReuseAddress(false);
-      return conn;
-    }
-
-    public int getConnectionPort() {
-      return connectionPort;
-    }
-
-    public String getHostName() {
-      return hostAddr.getHostAddress();
-    }
-  }
+  private static DHT hashTable = new DHT();
 
   /**
    * Re-sync the network when removing the peer
@@ -164,6 +108,38 @@ public class Peer {
     }
   }
 
+  private static void addContent(String host, int port, String content, ConnectionManager connMan) {
+    long key = hashTable.insert(content);
+    log.log("Key created: " + Long.toString(key));
+    // Communicate back to AddContent.java to tell it to print key
+    // TODO: ensure the host/port passed is the right one for addContent
+    Message keyMsg = new Message(CMD.PRINTKEY, new String[] {
+            connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
+    });
+    sendMessage(keyMsg, host, port);
+  }
+
+  private static void removeContent(String host, int port, long key) {
+    Boolean success = hashTable.removeByKey(key);
+    if (success) {
+      log.log("Removal success");  
+    } else {
+      log.log("Removal failed");  
+    }
+    
+  }
+
+  private static void lookupContent(String host, int port, long key) {
+    String content = hashTable.retrieve(key);
+    log.log(content); 
+    // TODO: need to communicate back to LookupContent.java to tell it to print key
+  }
+
+  private static void allKeys(String host, int port) {
+    String allKeys = hashTable.getAllKeys();
+    log.log(allKeys);
+  }
+
   public static void main(String[] args) {
     // for serializing/deserializing message into/from streams
     Message msg;
@@ -225,6 +201,22 @@ public class Peer {
               break;
             case EXIT:
               removeAndSync();
+              break;
+            case ADDCONTENT:
+              log.log("ADDCONTENT");
+              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]), incoming.params[2], connMan);
+              break;
+            case REMOVECONTENT:
+              log.log("REMOVECONTENT");
+              removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+              break;
+            case LOOKUPCONTENT:
+              log.log("LOOKUPCONTENT");
+              lookupContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+              break;
+            case ALLKEYS:
+              log.log("ALLKEYS");
+              allKeys(incoming.params[0], Integer.parseInt(incoming.params[1]));
               break;
             default:
               break;
