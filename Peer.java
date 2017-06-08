@@ -81,7 +81,7 @@ public class Peer {
   private static int requestContentCount( String startHost, int startPort, int contentCount ) {
     if ( next.port == startPort && next.host.equals(startHost) )
       return contentCount + hashTable.size();
-    
+
     contentCount += hashTable.size();
     Message countMsg = new Message(CMD.CONTENTCOUNT, new String[] {
       startHost, String.valueOf(startPort), String.valueOf(contentCount)
@@ -123,7 +123,7 @@ public class Peer {
       log.log("Peer count " + peerCount);
     }
     if ( (next.host.equals(host) && next.port == port) ||
-      (contentCount == 0) ) 
+        (contentCount == 0) ) 
       return;
     int lower = (int) Math.floor(contentCount / peerCount);
     int upper = (int) Math.ceil(contentCount / peerCount);
@@ -141,8 +141,8 @@ public class Peer {
     }
     log.log("Subset: " + subset.size() + " hashtabel: " + hashTable.size() );
     subset.removeAll(hashTable);
- log.log("Subset: " + subset.size() + " hashtabel: " + hashTable.size() );
-    
+    log.log("Subset: " + subset.size() + " hashtabel: " + hashTable.size() );
+
 
     for ( Map.Entry<Long, String> entry : subset.getTable().entrySet()) {
       Message distRest = new Message(CMD.ADDCONTENT, new String[] {
@@ -204,7 +204,6 @@ public class Peer {
       connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
     });
     sendMessage( msgPrev, host, port );
-    //loadBalance(connMan.getHostName(), connMan.getConnectionPort(), 0, 0, connMan);
   }
 
   /**
@@ -227,13 +226,13 @@ public class Peer {
   private static Object sendMessage( Message msg, String host, int port ) {
     Object result = null;
     try {
-      
+
       Socket clientSocket = null;
       try {
         clientSocket= new Socket( host, port );
         ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInputStream inStream = new ObjectInputStream(clientSocket.getInputStream());
-        
+
         outputStream.writeObject(msg);
         log.log("Wait for response");
         result = inStream.readObject();
@@ -288,25 +287,35 @@ public class Peer {
     }
   }
 
-  private static void removeContent(String host, int port, long key, boolean visitedAll) {
-    if ( visitedAll ) {
-      log.log("No such content");
-    } else if ( hashTable.contains(key) ) {
+  private static void removeContent(String host, int port, long key) {
+    if ( hashTable.contains(key) ) {
       hashTable.removeByKey(key);
-    } else {
-      String checkedAll = "false";
-      if (next.host.equals(host) && next.port == port)
-        checkedAll = "true";
-      Message removeMsg = new Message(CMD.REMOVECONTENT, new String[] {
-        host, String.valueOf(port), String.valueOf(key), checkedAll
-      });
-      sendMessage(removeMsg, next.host, next.port);
-    }
+      return;
+    } 
+    log.log("comparing " + port + ":" + next.port);
+    if (next.host.equals(host) && next.port == port)
+      return;
+    Message removeMsg = new Message(CMD.REMOVECONTENT, new String[] {
+      host, String.valueOf(port), String.valueOf(key)
+    });
+    sendMessage(removeMsg, next.host, next.port);
+
   }
 
   private static void lookupContent(String host, int port, long key) {
-    String content = hashTable.retrieve(key);
-    // TODO: need to communicate back to LookupContent.java to tell it to print key
+    if ( hashTable.contains(key) ) {
+      log.log(hashTable.retrieve(key));
+      return;
+    }
+    
+    if ( next.host.equals(host) && next.port == port ) {
+      return;
+    }
+
+    Message newLookup = new Message(CMD.LOOKUPCONTENT, new String[] {
+      host, String.valueOf(port), String.valueOf(key)
+    });
+    sendMessage(newLookup, next.host, next.port);
   }
 
   private static void allKeys(String host, int port) {
@@ -359,7 +368,7 @@ public class Peer {
             "Peer@" + connMan.getHostName() + ":" + connMan.getConnectionPort());
         log.log("Connected at : " + connMan.getHostName() + " " + connMan.getConnectionPort());
 
-        
+
         if ( connectionHost != null ) {
           Address nextsPrev = requestPeerLink(connectionHost, connectionPort, true);
 
@@ -377,7 +386,7 @@ public class Peer {
             connMan.getHostName(), String.valueOf(connMan.getConnectionPort()), "false"
           });
           sendMessage(prevsNextMsg, nextsPrev.host, nextsPrev.port);
-          
+
           loadBalance(connMan.getHostName(), connMan.getConnectionPort(), 0, 0, connMan);
         } else {
           prev = next = new Address(connMan.getHostName(), connMan.getConnectionPort());
@@ -392,76 +401,72 @@ public class Peer {
 
           log.log("Message Recieved: " + incoming.cmd);
           try {
-          switch (incoming.cmd) {
-            case GETLINK:
-              outStream.writeObject(prev);
-              break;
-            case SETNEXT:
-              setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), Boolean.parseBoolean(incoming.params[2]), connMan);
-              outStream.writeObject("success");
-              break;
-            case SETPREV:
-              setPrev( incoming.params[0], Integer.parseInt(incoming.params[1]));
-              outStream.writeObject("success");
-              break;
-            case ADDPEER:
-              addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
-              outStream.writeObject("success");
-              break;
-            case EXIT:
-              removeAndSync();
-              outStream.writeObject("success");
-              break;
-            case FINDMIN:
-              Integer min = findMin(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
-              log.log("min: " + min);
-              outStream.writeObject(min);
-              break;
-            case ADDCONTENT:
-              System.out.println(incoming.params.length);
-              addContent(incoming.params[0], Integer.parseInt(incoming.params[1]),
-                  Long.parseLong(incoming.params[2]),
-                  incoming.params[3], 
-                  Integer.parseInt(incoming.params[4]), connMan);
-              outStream.writeObject("success");
-              break;
-            case REMOVECONTENT:
-              removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]), Boolean.parseBoolean(incoming.params[3]));
-              outStream.writeObject("success");
-              break;
-            case LOOKUPCONTENT:
-              lookupContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
-              outStream.writeObject("success");
+            switch (incoming.cmd) {
+              case GETLINK:
+                outStream.writeObject(prev);
+                break;
+              case SETNEXT:
+                setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), Boolean.parseBoolean(incoming.params[2]), connMan);
+                outStream.writeObject("success");
+                break;
+              case SETPREV:
+                setPrev( incoming.params[0], Integer.parseInt(incoming.params[1]));
+                outStream.writeObject("success");
+                break;
+              case ADDPEER:
+                addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+                outStream.writeObject("success");
+                break;
+              case EXIT:
+                removeAndSync();
+                outStream.writeObject("success");
+                break;
+              case FINDMIN:
+                Integer min = findMin(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
+                log.log("min: " + min);
+                outStream.writeObject(min);
+                break;
+              case ADDCONTENT:
+                System.out.println(incoming.params.length);
+                addContent(incoming.params[0], Integer.parseInt(incoming.params[1]),
+                    Long.parseLong(incoming.params[2]),
+                    incoming.params[3], 
+                    Integer.parseInt(incoming.params[4]), connMan);
+                outStream.writeObject("success");
+                break;
+              case REMOVECONTENT:
+                removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+                loadBalance(incoming.params[0], Integer.parseInt(incoming.params[1]), 0, 0, connMan);
+                outStream.writeObject("success");
+                break;
+              case LOOKUPCONTENT:
+                lookupContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
+                outStream.writeObject("success");
 
-              break;
-            case ALLKEYS:
-              allKeys(incoming.params[0], Integer.parseInt(incoming.params[1]));
-              outStream.writeObject("success");
-              break;
-            case PRINTALL:
-              printAllContent( incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
-              outStream.writeObject("success");
-              break;
-            case CONTENTCOUNT:
-              int contentCount = requestContentCount( incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
-              outStream.writeObject(contentCount);
-              break;
-            case PEERCOUNT:
-              int peerCount = requestPeerCount( incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
-              outStream.writeObject(peerCount);
-              break;
-            //case LOADBALANCE:
-            //  loadBalance(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]), 
-            //      Integer.parseInt(incoming.params[3]), connMan);
-            //  outStream.writeObject("success");
-            //  break;
-            case SUBSET:
-              DHT subset = getOverflowSet(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]), new DHT());
-              outStream.writeObject(subset);
-              break;
-            default:
-              break;
-          }
+                break;
+              case ALLKEYS:
+                allKeys(incoming.params[0], Integer.parseInt(incoming.params[1]));
+                outStream.writeObject("success");
+                break;
+              case PRINTALL:
+                printAllContent( incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+                outStream.writeObject("success");
+                break;
+              case CONTENTCOUNT:
+                int contentCount = requestContentCount( incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
+                outStream.writeObject(contentCount);
+                break;
+              case PEERCOUNT:
+                int peerCount = requestPeerCount( incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
+                outStream.writeObject(peerCount);
+                break;
+              case SUBSET:
+                DHT subset = getOverflowSet(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]), new DHT());
+                outStream.writeObject(subset);
+                break;
+              default:
+                break;
+            }
           } finally {
             server.close();
           }
