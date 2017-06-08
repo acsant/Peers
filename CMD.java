@@ -11,5 +11,6 @@ public enum CMD {
   ALLKEYS,
   REMOVECONTENT,
   COUNT,
-  PRINTALL
+  PRINTALL,
+  GETLINK
 }
