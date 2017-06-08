@@ -23,7 +23,7 @@ public class AddContent {
       next = new Socket(host, port);
       long initKey = 0;
       Message msg = new Message(CMD.ADDCONTENT, new String[] { host, String.valueOf(port), 
-        String.valueOf(initKey), content, "-1" });
+        String.valueOf(initKey), content, String.valueOf(Integer.MAX_VALUE) });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
       outStream.writeObject(msg);
 

@@ -16,6 +16,7 @@ public class PrintContent {
     try {
       next = new Socket(host, Integer.parseInt(port));
       long initKey = 0;
+      System.out.println("printin at " + host + "@" + port);
       Message msg = new Message(CMD.PRINTALL, new String[] { host, port });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
       outStream.writeObject(msg);

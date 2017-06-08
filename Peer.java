@@ -10,7 +10,7 @@ public class Peer {
   // References to next and prev
   static Address prev = null;
   static Address next = null;
-  static Socket server;
+  static Socket server = null;
   public static class Address implements Serializable {
     String host;
     int port;
@@ -39,7 +39,6 @@ public class Peer {
     });
     sendMessage(setPrevsNext, prev.host, prev.port);
     prev = next = null;
-    log.log("Peer exiting");
     System.exit(0);
   }
 
@@ -67,7 +66,6 @@ public class Peer {
    * Load balance across all the peers
    */
   private static void loadBalance ( String host, int port, int contentCount, int peerCount, ConnectionManager connMan ) {
-    log.log("Load balancing");
     if ( peerCount != 0 && host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()) {
       int lower = (int) Math.floor(contentCount / peerCount);
       int upper = (int) Math.ceil(contentCount / peerCount);
@@ -82,7 +80,7 @@ public class Peer {
     sendMessage( countMsg, next.host, next.port );
   }
 
-  private static Address requestPeerLink ( String host, int port, boolean next ) {
+  private static Address requestPeerLink ( String host, int port, boolean prev ) {
     Socket clientSocket = null;
     Address linkInfo = null;
     try {
@@ -90,10 +88,9 @@ public class Peer {
         clientSocket = new Socket(host, port);
         ObjectOutputStream outStream = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInputStream inStream = new ObjectInputStream(clientSocket.getInputStream());
-        Message getLink = new Message(CMD.GETLINK, new String[] { String.valueOf(next) });
+        Message getLink = new Message(CMD.GETLINK, new String[] { String.valueOf(prev) });
         outStream.writeObject(getLink);
         linkInfo = (Address) inStream.readObject();
-        log.log("getting addr: " + linkInfo.port);
         return linkInfo;
       } catch (Exception e) {
         log.log(e.getMessage());
@@ -112,7 +109,6 @@ public class Peer {
    * Adds peer to the current network
    */
   private static void addPeer( String host, int port, ConnectionManager connMan ) {
-    log.log("Adding new Peer : " + host + "@" + port);
     Address newAddr = new Address( host, port );
 
     Address temp = next;
@@ -155,17 +151,20 @@ public class Peer {
     log.log("New prev is " + prev.host + "@" + prev.port);
   }
 
-  private static void sendMessage( Message msg, String host, int port ) {
+  private static Object sendMessage( Message msg, String host, int port ) {
+    Object result = null;
     try {
-
+      
       Socket clientSocket = null;
       try {
         clientSocket= new Socket( host, port );
         ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
         ObjectInputStream inStream = new ObjectInputStream(clientSocket.getInputStream());
+        
         outputStream.writeObject(msg);
-        String flag = (String) inStream.readObject();
-        log.log(flag);
+        log.log("Wait for response");
+        result = inStream.readObject();
+        log.log("unblock");
       } catch (Exception e) {
         log.log(e.getMessage());
       } finally {
@@ -175,13 +174,28 @@ public class Peer {
     } catch (IOException e) {
       log.log(e.getMessage());
     }
+    return result;
   }
 
-  private static void addContent(String host, int port, Long paramKey, String content, int max, ConnectionManager connMan) {
-    log.log("ENTERING ADDCONTENT");
-    if ( hashTable.size() == 0 || hashTable.size() < max || (max != -1 && (
-            host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()
-            )) ) {
+  private static int findMin(String startHost, int startPort, int currentMin) {
+    if ( next.host.equals(startHost) && next.port == startPort ) {
+      log.log("reached end");
+      return Math.min(currentMin, hashTable.size());
+    }
+    Message recurse = new Message(CMD.FINDMIN, new String[] {
+      startHost, String.valueOf(startPort), String.valueOf(currentMin)
+    });
+    log.log("calling find min at " + next.host + "@" + next.port);
+    return (Integer) sendMessage(recurse, next.host, next.port);
+  }
+
+  private static void addContent(String host, int port, Long paramKey, String content, int min, ConnectionManager connMan) {
+    int minContent = min; 
+    if ( minContent == Integer.MAX_VALUE ) {
+      minContent = findMin(connMan.getHostName(), connMan.getConnectionPort(), min);
+      log.log("find min returned : " + minContent);
+    }
+    if ( hashTable.size() == 0 || hashTable.size() == min ) {
       long key = paramKey;
       if ( paramKey == 0 ) {
         key = hashTable.insert(content);
@@ -189,14 +203,14 @@ public class Peer {
         hashTable.put(key, content);
       }
       log.log("Key created: " + Long.toString(key));
+      return;
 
       // Communicate back to AddContent.java to tell it to print key
       // TODO: ensure the host/port passed is the right one for addContent
     } else {
       Message distContent = new Message(CMD.ADDCONTENT, new String[] {
-        host, String.valueOf(port), String.valueOf(paramKey), content, String.valueOf(hashTable.size())
+        host, String.valueOf(port), String.valueOf(paramKey), content, String.valueOf(minContent)
       });
-      log.log("finding next storage at : " + next.host + "@" + next.port);
       sendMessage(distContent, next.host, next.port);
     }
   }
@@ -219,22 +233,18 @@ public class Peer {
 
   private static void lookupContent(String host, int port, long key) {
     String content = hashTable.retrieve(key);
-    log.log(content); 
     // TODO: need to communicate back to LookupContent.java to tell it to print key
   }
 
   private static void allKeys(String host, int port) {
     String allKeys = hashTable.getAllKeys();
-    log.log(allKeys);
   }
 
   private static void printAllContent( String host, int port, ConnectionManager connMan ) {
 
-    log.log("Compare host: " + port);
     log.log("Next host: " + next.port);
 
     log.log("=====================================================================");
-    log.log(hashTable.toString());
     for (Map.Entry<Long, String> entry : hashTable.getTable().entrySet()) {
       log.log(entry.getKey() + " " + entry.getValue());
     }
@@ -267,7 +277,6 @@ public class Peer {
     ConnectionManager connMan;
     ServerSocket listener = null;
     try {
-      server = null;
       try {
         connMan = new ConnectionManager();
         listener = connMan.getAvailableConnection();
@@ -279,9 +288,7 @@ public class Peer {
 
 
         if ( connectionHost != null ) {
-          log.log("Connection to server of : " + connectionHost + " : " + connectionPort);
-          Address nextsNext = requestPeerLink(connectionHost, connectionPort, true);
-          Address nextsPrev = requestPeerLink(connectionHost, connectionPort, false);
+          Address nextsPrev = requestPeerLink(connectionHost, connectionPort, true);
 
           log.log("Setting next to : " + connectionPort );
           next = new Address(connectionHost, connectionPort);
@@ -304,19 +311,16 @@ public class Peer {
 
         while ( true ) {
           server = listener.accept();
-          log.log("Server listening...");
 
           ObjectInputStream inStream = new ObjectInputStream(server.getInputStream());
           ObjectOutputStream outStream = new ObjectOutputStream(server.getOutputStream());
           Message incoming = (Message) inStream.readObject();
 
           log.log("Message Recieved: " + incoming.cmd);
+          try {
           switch (incoming.cmd) {
             case GETLINK:
-              if ( Boolean.parseBoolean(incoming.params[0]) )
-                outStream.writeObject(next);
-              else
-                outStream.writeObject(prev);
+              outStream.writeObject(prev);
               break;
             case SETNEXT:
               setNext( incoming.params[0], Integer.parseInt(incoming.params[1]), Boolean.parseBoolean(incoming.params[2]), connMan);
@@ -334,7 +338,13 @@ public class Peer {
               removeAndSync();
               outStream.writeObject("success");
               break;
+            case FINDMIN:
+              Integer min = findMin(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
+              log.log("min: " + min);
+              outStream.writeObject(min);
+              break;
             case ADDCONTENT:
+              System.out.println(incoming.params.length);
               addContent(incoming.params[0], Integer.parseInt(incoming.params[1]),
                   Long.parseLong(incoming.params[2]),
                   incoming.params[3], 
@@ -342,18 +352,15 @@ public class Peer {
               outStream.writeObject("success");
               break;
             case REMOVECONTENT:
-              log.log("REMOVECONTENT");
               removeContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]), Boolean.parseBoolean(incoming.params[3]));
               outStream.writeObject("success");
               break;
             case LOOKUPCONTENT:
-              log.log("LOOKUPCONTENT");
               lookupContent(incoming.params[0], Integer.parseInt(incoming.params[1]), Long.parseLong(incoming.params[2]));
               outStream.writeObject("success");
 
               break;
             case ALLKEYS:
-              log.log("ALLKEYS");
               allKeys(incoming.params[0], Integer.parseInt(incoming.params[1]));
               outStream.writeObject("success");
               break;
@@ -364,14 +371,17 @@ public class Peer {
             default:
               break;
           }
+          } finally {
+            server.close();
+          }
 
         }
 
       } catch (Exception e) {
-        log.log("Exception:" + e.getStackTrace().toString());
+        e.printStackTrace();
+        log.log("Exception:" + e.getMessage());
       } finally {
         listener.close();
-        server.close();
       }
 
     } catch (IOException e) {

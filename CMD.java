@@ -12,5 +12,6 @@ public enum CMD {
   REMOVECONTENT,
   COUNT,
   PRINTALL,
-  GETLINK
+  GETLINK,
+  FINDMIN
 }
