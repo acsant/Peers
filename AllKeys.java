@@ -20,9 +20,12 @@ public class AllKeys {
       Socket next = new Socket(host, port);
       Message msg = new Message(CMD.ALLKEYS, new String[] { host, Integer.toString(port) });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
+      ObjectInputStream iStream = new ObjectInputStream(next.getInputStream());
       outStream.writeObject(msg);
+      String allkeys = (String) iStream.readObject();
+      System.out.println(allkeys);
     } catch (Exception e) {
-      e.printStackTrace();
+      System.err.println("Error: no such peer");
     }
   }
 }

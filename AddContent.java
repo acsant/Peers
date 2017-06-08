@@ -25,10 +25,13 @@ public class AddContent {
       Message msg = new Message(CMD.ADDCONTENT, new String[] { host, String.valueOf(port), 
         String.valueOf(initKey), content, String.valueOf(Integer.MAX_VALUE) });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
+      ObjectInputStream iStream = new ObjectInputStream(next.getInputStream());
       outStream.writeObject(msg);
+      long key = (long) iStream.readObject();
+      System.out.println(key);
 
     } catch (Exception e) {
-      e.printStackTrace();
+      System.err.println("Error: no such peer");
     }
 
 

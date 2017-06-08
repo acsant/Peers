@@ -22,9 +22,13 @@ public class RemoveContent {
       Socket next = new Socket(host, Integer.parseInt(port));
       Message msg = new Message(CMD.REMOVECONTENT, new String[] { host, port, key, "false" });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
+      ObjectInputStream iStream = new ObjectInputStream(next.getInputStream());
       outStream.writeObject(msg);
+      boolean result = (boolean) iStream.readObject();
+      if ( !result )
+        System.err.println("Error: no such content");
     } catch (Exception e) {
-      e.printStackTrace();
+      System.err.println("Error: no such peer");
     }
   }
 }

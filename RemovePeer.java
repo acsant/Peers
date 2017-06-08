@@ -23,7 +23,7 @@ public class RemovePeer {
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
       outStream.writeObject(msg);
     } catch (Exception e) {
-      e.printStackTrace();
+      System.err.println("Error: no such peer");
     }
   }
 }

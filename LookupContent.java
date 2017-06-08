@@ -22,9 +22,15 @@ public class LookupContent {
       Socket next = new Socket(host, port);
       Message msg = new Message(CMD.LOOKUPCONTENT, new String[] { host, Integer.toString(port), Long.toString(key) });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
+      ObjectInputStream iStream = new ObjectInputStream(next.getInputStream());
       outStream.writeObject(msg);
+      String content = (String) iStream.readObject();
+      if (content != null)
+        System.out.println(content);
+      else
+        System.err.println("Error: no such content");
     } catch (Exception e) {
-      e.printStackTrace();
+      System.err.println("Error: no such peer");
     }
   }
 }
