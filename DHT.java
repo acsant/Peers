@@ -1,22 +1,57 @@
 import java.util.*;
 import java.net.*;
 import java.lang.*;
+import java.io.*;
 
-public class DHT {
-  InetAddress host;
-  int port;
+public class DHT implements Serializable {
 
-  Map<Integer, String> map = new HashMap<>();
+  Map<Long, String> map = new HashMap<>();
 
-  DHT ( InetAddress host, int port ) {
-    this.host = host;
-    this.port = port;
-  }
-
-  public int insert(String content) {
-    int key = (int) System.nanoTime();
+  public long insert(String content) {
+    long key = (long) System.nanoTime();
     map.put(key, content);
     return key;
+  }
+
+  public String retrieve(long key) {
+  	return map.get(key);
+  }
+
+  public void removeByKey(long key) {
+    map.remove(key);
+  }
+
+  public String getAllKeys() {
+    List<Long> keys = new ArrayList<Long>(map.keySet());
+    String stringified = "";
+    for (int i = 0; i < keys.size(); i++) {
+      if (i > 0) {
+        stringified += " ";
+      }
+      stringified += Long.toString(keys.get(i));
+    }
+    return stringified;
+  }
+
+  public void put(Long key, String value) {
+    map.put(key, value);
+  }
+
+  public int size() {
+    return map.size();
+  }
+
+  public boolean contains(Long key) {
+    return map.containsKey(key);
+  }
+
+  public void removeAll(DHT set) {
+    for ( Map.Entry<Long, String> entry : set.getTable().entrySet() )
+      map.remove(entry.getKey());
+  }
+
+  public Map<Long, String> getTable() {
+    return map;
   }
 
 }

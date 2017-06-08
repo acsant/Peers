@@ -6,25 +6,26 @@ import javafx.util.Pair;
 import java.lang.reflect.Array;
 import java.net.*;
 
-public class RemovePeer {
+public class PrintContent {
   public static void main(String[] args) {
 
-    String host = null;
-    int port = 0;
 
-    if ( args.length == 2 ) {
-      host = args[0];
-      port = Integer.parseInt(args[1]);
-    }
-
+    String host = args[0];
+    String port = args[1];
+    Socket next = null;
     try {
-      Socket next = new Socket(host, port);
-      Message msg = new Message(CMD.EXIT, new String[] { "dummy" });
+      next = new Socket(host, Integer.parseInt(port));
+      long initKey = 0;
+      System.out.println("printin at " + host + "@" + port);
+      Message msg = new Message(CMD.PRINTALL, new String[] { host, port });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
       outStream.writeObject(msg);
+
     } catch (Exception e) {
-      System.err.println("Error: no such peer");
+      e.printStackTrace();
     }
+
+
   }
 }
 

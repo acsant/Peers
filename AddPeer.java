@@ -18,17 +18,20 @@ public class AddPeer {
         };
       }
       peer = Runtime.getRuntime().exec(cmd);
-      /*InputStream peerStream = peer.getInputStream();
+      InputStream peerStream = peer.getInputStream();
       InputStream errStream = peer.getErrorStream();
-      BufferedReader reader = new BufferedReader(new InputStreamReader(peerStream));
-      BufferedReader errReader = new BufferedReader(new InputStreamReader(errStream));
+      BufferedReader reader = new BufferedReader(new
+      InputStreamReader(peerStream));
+      BufferedReader errReader = new BufferedReader(new
+      InputStreamReader(errStream));
       String line = null;
-      if ( ( line = reader.readLine() ) != null ) {
+      if ((line = reader.readLine()) != null) {
         System.out.println(line);
-      }*/
-      
+      }
+
     } catch (IOException e) {
-      e.printStackTrace();
+      System.err.println("Error: no such peer");;
     }
   }
 }
+

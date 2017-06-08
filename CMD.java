@@ -1,4 +1,21 @@
-  public enum CMD {
-    EXIT,
-    ADDPEER
-  }
+import java.util.*;
+
+public enum CMD {
+  EXIT,
+  SETNEXT,
+  SETPREV,
+  ADDPEER,
+  PRINTKEY,
+  ADDCONTENT,
+  LOOKUPCONTENT,
+  ALLKEYS,
+  REMOVECONTENT,
+  COUNT,
+  PRINTALL,
+  GETLINK,
+  FINDMIN,
+  PEERCOUNT,
+  CONTENTCOUNT,
+  LOADBALANCE,
+  SUBSET
+}
