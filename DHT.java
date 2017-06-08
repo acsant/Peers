@@ -44,4 +44,8 @@ public class DHT {
     return map.containsKey(key);
   }
 
+  public Map<Long, String> getTable() {
+    return map;
+  }
+
 }

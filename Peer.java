@@ -23,7 +23,7 @@ public class Peer {
 
   // Enable Logging
   static PSLogger log;
-  private static DHT hashTable = new DHT();
+  private static DHT hashTable;
 
   /**
    * Re-sync the network when removing the peer
@@ -44,14 +44,34 @@ public class Peer {
   }
 
   /**
+   * Distribute all the content when load balancing
+   */
+  private static void distributeContent( String host, int port, int upper, boolean isEnd, ConnectionManager connMan ) {
+    if ( next.host.equals(host) && next.port == port )
+      isEnd = true;
+
+    if ( hashTable.size() > upper ) {
+      int i = hashTable.size();
+      for (Map.Entry<Long, String> entry : hashTable.getTable().entrySet()) {
+        Message distContent = new Message(CMD.ADDCONTENT, new String[] {
+          connMan.getHostName(), String.valueOf(connMan.getConnectionPort()), String.valueOf(entry.getKey()), entry.getValue(), String.valueOf(upper)
+        });
+
+        sendMessage(distContent, host, port);
+      }
+    }
+  }
+
+  /**
    * Load balance across all the peers
    */
   private static void loadBalance ( String host, int port, int contentCount, int peerCount, ConnectionManager connMan ) {
+    log.log("Load balancing");
     if ( peerCount != 0 && host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()) {
       int lower = (int) Math.floor(contentCount / peerCount);
       int upper = (int) Math.ceil(contentCount / peerCount);
       
-
+      distributeContent( host, port, upper, false, connMan ); 
     }
     contentCount += hashTable.size();
     peerCount ++;
@@ -83,6 +103,7 @@ public class Peer {
       connMan.getHostName(), String.valueOf(connMan.getConnectionPort())
     });
     sendMessage( msgPrev, host, port );
+    loadBalance(connMan.getHostName(), connMan.getConnectionPort(), 0, 0, connMan);
   }
 
   /**
@@ -114,7 +135,9 @@ public class Peer {
       try {
         clientSocket= new Socket( host, port );
         ObjectOutputStream outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
+        ObjectInputStream inStream = new ObjectInputStream(clientSocket.getInputStream());
         outputStream.writeObject(msg);
+        String msg = inStream.readObject();
       } catch (IOException e) {
         log.log(e.getMessage());
       } finally {
@@ -176,13 +199,34 @@ public class Peer {
     String allKeys = hashTable.getAllKeys();
     log.log(allKeys);
   }
+  
+  private static void printAllContent( String host, int port, ConnectionManager connMan ) {
+    
+    log.log("Compare host: " + port);
+    log.log("Next host: " + next.port);
+    
+    log.log("=====================================================================");
+    log.log(hashTable.toString());
+    for (Map.Entry<Long, String> entry : hashTable.getTable().entrySet()) {
+      log.log(entry.getKey() + " " + entry.getValue());
+    }
+
+    if ( host.equals(next.host) && port == next.port )
+      return;
+    Message printMsg = new Message(CMD.PRINTALL, new String[] {
+      host, String.valueOf(port)
+    });
+
+    sendMessage(printMsg, next.host, next.port);
+  }
 
   public static void main(String[] args) {
     // for serializing/deserializing message into/from streams
     Message msg;
-
     // list of all active peers in the network
     ArrayList<Pair<InetAddress, Integer>> Peers = new ArrayList<>();
+
+    hashTable = new DHT();
 
     String connectionHost = null;
     int connectionPort = 0;
@@ -217,9 +261,6 @@ public class Peer {
           prev = next = new Address(connMan.getHostName(), connMan.getConnectionPort());
         }
 
-        // Load balancing occurs here
-
-
         while ( true ) {
           server = listener.accept();
           log.log("Server listening...");
@@ -237,6 +278,7 @@ public class Peer {
               break;
             case ADDPEER:
               addPeer(incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
+
               break;
             case EXIT:
               removeAndSync();
@@ -258,6 +300,9 @@ public class Peer {
             case ALLKEYS:
               log.log("ALLKEYS");
               allKeys(incoming.params[0], Integer.parseInt(incoming.params[1]));
+              break;
+            case PRINTALL:
+              printAllContent( incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               break;
             default:
               break;
