@@ -1,4 +1,3 @@
-import javafx.util.Pair;
 
 import java.lang.reflect.Array;
 import java.util.*;
@@ -314,9 +313,6 @@ public class Peer {
   public static void main(String[] args) {
     // for serializing/deserializing message into/from streams
     Message msg;
-    // list of all active peers in the network
-    ArrayList<Pair<InetAddress, Integer>> Peers = new ArrayList<>();
-
     hashTable = new DHT();
 
     String connectionHost = null;
