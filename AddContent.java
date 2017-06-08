@@ -24,8 +24,22 @@ public class AddContent {
       long initKey = 0;
       Message msg = new Message(CMD.ADDCONTENT, new String[] { host, String.valueOf(port), 
         String.valueOf(initKey), content, "-1" });
-      ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
-      outStream.writeObject(msg);
+    ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
+    outStream.writeObject(msg);
+
+    ObjectInputStream inputStream = new ObjectInputStream(next.getInputStream());
+    Message printToConsoleMsg = (Message) inputStream.readObject();
+
+    switch (printToConsoleMsg.cmd) {
+      case PEERNOTFOUND:
+        System.out.println("Error: No such peer");
+        break;
+      case PRINTKEY:
+        System.out.println(printToConsoleMsg.params[0]);
+        break;
+      default:
+        System.out.println("An unexpected error occurred when adding content.");
+    }
 
     } catch (Exception e) {
       e.printStackTrace();
