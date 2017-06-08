@@ -45,10 +45,7 @@ public class Peer {
   /**
    * Distribute all the content when load balancing
    */
-  private static void distributeContent( String host, int port, int upper, boolean isEnd, ConnectionManager connMan ) {
-    if ( next.host.equals(host) && next.port == port )
-      isEnd = true;
-
+  private static void distributeContent( String host, int port, int upper, ConnectionManager connMan ) {
     if ( hashTable.size() > upper ) {
       int i = hashTable.size();
       for (Map.Entry<Long, String> entry : hashTable.getTable().entrySet()) {
@@ -62,22 +59,90 @@ public class Peer {
     }
   }
 
+  private static int requestPeerCount ( String startHost, int startPort, int peerCount ) {
+    if ( next.port == startPort && next.host.equals(startHost) )
+      return peerCount + 1;
+
+    peerCount += 1;
+    Message countMsg = new Message(CMD.PEERCOUNT, new String[] {
+      startHost, String.valueOf(startPort), String.valueOf(peerCount)
+    });
+    return (Integer) sendMessage(countMsg, next.host, next.port);
+  }
+
+  private static int requestContentCount( String startHost, int startPort, int contentCount ) {
+    if ( next.port == startPort && next.host.equals(startHost) )
+      return contentCount + hashTable.size();
+    
+    contentCount += hashTable.size();
+    Message countMsg = new Message(CMD.CONTENTCOUNT, new String[] {
+      startHost, String.valueOf(startPort), String.valueOf(contentCount)
+    });
+    return (Integer) sendMessage( countMsg, next.host, next.port );
+  }
+
+  /**
+   * Get content to redistribute
+   */
+  private static DHT getOverflowSet(String host, int port, int upper, DHT subset) {
+    int i = hashTable.size();
+    for ( Map.Entry<Long, String> entry : hashTable.getTable().entrySet()) {
+      if ( i > upper) {
+        subset.put(entry.getKey(), entry.getValue());
+        i--;
+      }
+    }
+    hashTable.removeAll(subset);
+    log.log("Host:" + next.port + " " + port + " " + String.valueOf(hashTable.size()));
+    if ( (!host.equals(next.host) || port != next.port)  ) {
+      Message collectSet = new Message(CMD.SUBSET, new String[] {
+        host, String.valueOf(port), String.valueOf(upper)
+      });
+      DHT extended = (DHT) sendMessage(collectSet, next.host, next.port);
+      subset.getTable().putAll(extended.getTable());
+    }
+    return subset;
+  }
+
   /**
    * Load balance across all the peers
    */
   private static void loadBalance ( String host, int port, int contentCount, int peerCount, ConnectionManager connMan ) {
-    if ( peerCount != 0 && host.equals(connMan.getHostName()) && port == connMan.getConnectionPort()) {
-      int lower = (int) Math.floor(contentCount / peerCount);
-      int upper = (int) Math.ceil(contentCount / peerCount);
-
-      distributeContent( host, port, upper, false, connMan ); 
+    if ( contentCount == 0 && peerCount == 0 ) {
+      contentCount = requestContentCount( host, port, contentCount );
+      log.log("Content count " + contentCount);
+      peerCount = requestPeerCount( host, port, peerCount );
+      log.log("Peer count " + peerCount);
     }
-    contentCount += hashTable.size();
-    peerCount ++;
-    Message countMsg = new Message( CMD.COUNT, new String[] {
-      host, String.valueOf(port), String.valueOf(contentCount), String.valueOf(peerCount)
-    });
-    sendMessage( countMsg, next.host, next.port );
+    if ( (next.host.equals(host) && next.port == port) ||
+      (contentCount == 0) ) 
+      return;
+    int lower = (int) Math.floor(contentCount / peerCount);
+    int upper = (int) Math.ceil(contentCount / peerCount);
+    log.log("Lower : " + String.valueOf(lower));
+    log.log("Upper : " + String.valueOf(upper));
+    log.log("dist content");
+    //distributeContent( host, port, upper, connMan );
+    DHT subset = new DHT();
+    log.log("Host: " + host + "@" + port );
+    subset = getOverflowSet( host, port, lower, subset ); 
+    log.log("after dist: " + subset.size());
+    for ( Map.Entry <Long, String> entry : subset.getTable().entrySet()) {
+      if ( hashTable.size() < lower )
+        hashTable.getTable().put(entry.getKey(), entry.getValue());
+    }
+    log.log("Subset: " + subset.size() + " hashtabel: " + hashTable.size() );
+    subset.removeAll(hashTable);
+ log.log("Subset: " + subset.size() + " hashtabel: " + hashTable.size() );
+    
+
+    for ( Map.Entry<Long, String> entry : subset.getTable().entrySet()) {
+      Message distRest = new Message(CMD.ADDCONTENT, new String[] {
+        connMan.getHostName(), String.valueOf(connMan.getConnectionPort()), String.valueOf(entry.getKey()),
+          entry.getValue(), String.valueOf(lower)
+      });
+      sendMessage(distRest, next.host, next.port);
+    }
   }
 
   private static Address requestPeerLink ( String host, int port, boolean prev ) {
@@ -195,7 +260,7 @@ public class Peer {
       minContent = findMin(connMan.getHostName(), connMan.getConnectionPort(), min);
       log.log("find min returned : " + minContent);
     }
-    if ( hashTable.size() == 0 || hashTable.size() == min ) {
+    if ( hashTable.size() == 0 || hashTable.size() == minContent ) {
       long key = paramKey;
       if ( paramKey == 0 ) {
         key = hashTable.insert(content);
@@ -286,7 +351,7 @@ public class Peer {
             "Peer@" + connMan.getHostName() + ":" + connMan.getConnectionPort());
         log.log("Connected at : " + connMan.getHostName() + " " + connMan.getConnectionPort());
 
-
+        
         if ( connectionHost != null ) {
           Address nextsPrev = requestPeerLink(connectionHost, connectionPort, true);
 
@@ -304,7 +369,8 @@ public class Peer {
             connMan.getHostName(), String.valueOf(connMan.getConnectionPort()), "false"
           });
           sendMessage(prevsNextMsg, nextsPrev.host, nextsPrev.port);
-
+          
+          loadBalance(connMan.getHostName(), connMan.getConnectionPort(), 0, 0, connMan);
         } else {
           prev = next = new Address(connMan.getHostName(), connMan.getConnectionPort());
         }
@@ -367,6 +433,23 @@ public class Peer {
             case PRINTALL:
               printAllContent( incoming.params[0], Integer.parseInt(incoming.params[1]), connMan);
               outStream.writeObject("success");
+              break;
+            case CONTENTCOUNT:
+              int contentCount = requestContentCount( incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
+              outStream.writeObject(contentCount);
+              break;
+            case PEERCOUNT:
+              int peerCount = requestPeerCount( incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]));
+              outStream.writeObject(peerCount);
+              break;
+            //case LOADBALANCE:
+            //  loadBalance(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]), 
+            //      Integer.parseInt(incoming.params[3]), connMan);
+            //  outStream.writeObject("success");
+            //  break;
+            case SUBSET:
+              DHT subset = getOverflowSet(incoming.params[0], Integer.parseInt(incoming.params[1]), Integer.parseInt(incoming.params[2]), new DHT());
+              outStream.writeObject(subset);
               break;
             default:
               break;

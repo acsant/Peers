@@ -1,8 +1,9 @@
 import java.util.*;
 import java.net.*;
 import java.lang.*;
+import java.io.*;
 
-public class DHT {
+public class DHT implements Serializable {
 
   Map<Long, String> map = new HashMap<>();
 
@@ -42,6 +43,11 @@ public class DHT {
 
   public boolean contains(Long key) {
     return map.containsKey(key);
+  }
+
+  public void removeAll(DHT set) {
+    for ( Map.Entry<Long, String> entry : set.getTable().entrySet() )
+      map.remove(entry.getKey());
   }
 
   public Map<Long, String> getTable() {
