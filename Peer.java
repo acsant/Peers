@@ -29,6 +29,7 @@ public class Peer {
    * Re-sync the network when removing the peer
    */
   private static void removeAndSync () {
+    Address temp = next;
     Message setNextsPrev = new Message(CMD.SETPREV, new String[] {
       prev.host, String.valueOf(prev.port)
     });
@@ -39,6 +40,13 @@ public class Peer {
     });
     sendMessage(setPrevsNext, prev.host, prev.port);
     prev = next = null;
+    // Rebalance
+    for (Map.Entry<Long,String> entry : hashTable.getTable().entrySet()) {
+      Message reAdd = new Message(CMD.ADDCONTENT, new String[] {
+        temp.host, String.valueOf(temp.port), String.valueOf(entry.getKey()), entry.getValue(), String.valueOf(Integer.MAX_VALUE)
+      });
+      sendMessage(reAdd, temp.host, temp.port);
+    }
     System.exit(0);
   }
 
