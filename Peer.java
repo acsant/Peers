@@ -391,7 +391,7 @@ public class Peer {
                 outStream.writeObject(min);
                 break;
               case ADDCONTENT:
-                System.out.println(incoming.params.length);
+                log.log(Integer.toString(incoming.params.length));
                 long key = addContent(incoming.params[0], Integer.parseInt(incoming.params[1]),
                     Long.parseLong(incoming.params[2]),
                     incoming.params[3], 

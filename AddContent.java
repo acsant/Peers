@@ -16,11 +16,13 @@ public class AddContent {
       port = Integer.parseInt(args[1]);
       content = args[2];
     }
-
+    //System.out.println(host);
+    //System.out.println(port);
     Socket next = null;
     try {
       next = new Socket(host, port);
       long initKey = 0;
+      // System.out.println(content);
       Message msg = new Message(CMD.ADDCONTENT, new String[] { host, String.valueOf(port), 
         String.valueOf(initKey), content, String.valueOf(Integer.MAX_VALUE) });
       ObjectOutputStream outStream = new ObjectOutputStream(next.getOutputStream());
@@ -30,7 +32,7 @@ public class AddContent {
       System.out.println(key);
 
     } catch (Exception e) {
-      System.err.println("Error: no such peer");
+      System.out.println(e.getMessage());
     }
 
 

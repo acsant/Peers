@@ -6,6 +6,7 @@ public class AddPeer {
 
   public static void main(String[] args) {
     try {
+      // System.out.println("abcsdfgsd1");
       Process peer = null;
       String[] cmd; 
       if ( args.length == 2 ) {
@@ -17,14 +18,14 @@ public class AddPeer {
           "java", "-cp", System.getProperty("java.class.path"), "Peer"
         };
       }
+      // System.out.println("abcsdfgsd2");
       peer = Runtime.getRuntime().exec(cmd);
       InputStream peerStream = peer.getInputStream();
       InputStream errStream = peer.getErrorStream();
-      BufferedReader reader = new BufferedReader(new
-      InputStreamReader(peerStream));
-      BufferedReader errReader = new BufferedReader(new
-      InputStreamReader(errStream));
+      BufferedReader reader = new BufferedReader(new InputStreamReader(peerStream));
+      BufferedReader errReader = new BufferedReader(new InputStreamReader(errStream));
       String line = null;
+      // System.out.println("abcsdfgsd3");
       if ((line = reader.readLine()) != null) {
         System.out.println(line);
       }
